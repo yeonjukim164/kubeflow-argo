@@ -8,7 +8,7 @@ Argo CD ApplicationSet 으로 Kubeflow 와 MLOps 플랫폼(MLflow, Feast)을 설
 | Kubeflow | 1.7 기반 manifests 를 저장소에 복사 (Istio 1.16) | 공식 [kubeflow/manifests](https://github.com/kubeflow/manifests) **26.03.1** 을 원격 참조 (복사하지 않음) |
 | 오브젝트 저장소 | MinIO | **SeaweedFS** (Kubeflow Pipelines 기본값, MLflow·Feast 도 같이 사용) |
 | MLflow | 없음 | **3.17.2** (PostgreSQL + SeaweedFS) |
-| Feast | 없음 | **0.67.0** Operator (레지스트리 PostgreSQL, 온라인 스토어 **Valkey 9.2**) |
+| Feast | 없음 | **0.67.0** Operator (레지스트리 PostgreSQL, 온라인 스토어 **Valkey 9.1.3**) |
 | 배포 방식 | App of Apps (Application 15개 파일) | Root Application → **ApplicationSet 2개** (디렉터리 = 앱) |
 | Argo CD | v2.6.7 | **v3.5.6** |
 
@@ -45,7 +45,7 @@ platform/
 | notebooks | Notebook 컨트롤러, Jupyter/Volumes/Tensorboards 웹앱 | 1.11.0 |
 | user-namespace | 기본 Profile `kubeflow-user-example-com` | - |
 | postgres | MLflow·Feast 공용 DB | 18.6 |
-| valkey | Feast 온라인 스토어 | 9.2 |
+| valkey | Feast 온라인 스토어 | 9.1.3 |
 | mlflow | 트래킹 서버 + 모델 레지스트리 | 3.17.2 |
 | feast-operator / feast | Feast Operator, FeatureStore `mlops` (+UI) | 0.67.0 |
 

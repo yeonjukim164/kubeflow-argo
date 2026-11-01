@@ -29,7 +29,8 @@ spec:
     spec:
       containers:
       - name: valkey
-        image: valkey/valkey:9.2-alpine
+        # 9.2 는 아직 9.2.0-rc1 뿐(9.2-alpine 태그 = rc1) → 정식 릴리스 9.1.3 사용
+        image: valkey/valkey:9.1.3-alpine
         env:
         - name: VALKEY_PASSWORD
           valueFrom:
