@@ -1,0 +1,17 @@
+# Kubeflow 26.03 의 istio-system NetworkPolicy 는 같은 네임스페이스 파드만 허용 → NodePort(LAN) 접속이 막힘
+# ingressgateway 의 HTTP/HTTPS 포트만 외부에 열어 줌 (인증은 게이트웨이의 oauth2-proxy 가 담당)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: istio-ingressgateway-allow-external
+  namespace: istio-system
+spec:
+  podSelector:
+    matchLabels:
+      app: istio-ingressgateway
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - port: 8080
+    - port: 8443
