@@ -1,0 +1,7 @@
+# 서버 사이드 diff: API 서버가 채우는 기본값(StatefulSet volumeClaimTemplates 등)을 반영해서 비교
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  controller.diff.server.side: "true"

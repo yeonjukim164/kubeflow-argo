@@ -24,8 +24,7 @@ spec:
       labels:
         app: postgres
     spec:
-      # 처음부터 postgres 사용자(alpine UID 70)로 실행: root 로 시작하면 entrypoint 의 gosu 가
-      # Ubuntu 26.04(커널 7.0) 노드에서 CPU 100% 로 멈춘 채 postgres 를 실행하지 못함 (2026-11-01 확인)
+      # 비 root(alpine postgres UID 70)로 실행 → entrypoint 가 gosu 로 권한을 낮출 필요가 없음
       securityContext:
         runAsUser: 70
         runAsGroup: 70

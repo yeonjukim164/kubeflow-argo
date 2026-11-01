@@ -2,6 +2,7 @@
 #  - caBundle: cert-manager / istiod 가 런타임에 주입
 #  - failurePolicy: istiod 가 검증 웹훅을 준비되면 Fail 로 바꿈
 #  - 집계(aggregated) ClusterRole 의 rules: 컨트롤러가 채움
+#  - CRD spec.preserveUnknownFields: false 는 API 서버가 저장하지 않음
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,3 +20,4 @@ data:
   resource.customizations.ignoreDifferences.apiextensions.k8s.io_CustomResourceDefinition: |
     jqPathExpressions:
     - '.spec.conversion.webhook.clientConfig.caBundle'
+    - '.spec.preserveUnknownFields'
