@@ -26,12 +26,15 @@ spec:
           value: us-east-1
         command: ["sh", "-c"]
         # allowed-hosts: LAN 에서 노드 IP:NodePort 로 접근하므로 Host 헤더 제한을 끔
+        # cors-allowed-origins: 기본값은 localhost 만 허용 → 노드 IP:30500 으로 연 UI 의 POST(실행 검색 등)가 403
+        #   다른 사이트가 브라우저로 API 를 부르지 못하도록 '*' 대신 노드 주소만 허용
         args:
         - >-
           exec mlflow server --host 0.0.0.0 --port 5000 --workers 2
           --backend-store-uri "$MLFLOW_BACKEND_STORE_URI"
           --artifacts-destination s3://mlflow/artifacts
           --allowed-hosts '*'
+          --cors-allowed-origins 'http://192.168.0.31:30500,http://192.168.0.32:30500,http://192.168.0.33:30500,http://192.168.0.34:30500'
         ports:
         - name: http
           containerPort: 5000
