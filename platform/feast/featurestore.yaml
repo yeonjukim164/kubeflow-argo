@@ -1,0 +1,21 @@
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: mlops
+spec:
+  feastProject: mlops
+  services:
+    onlineStore:
+      persistence:
+        store:
+          type: redis
+          secretRef:
+            name: feast-data-stores
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores
+    ui: {}

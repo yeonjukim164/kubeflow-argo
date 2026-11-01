@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        # -full: PostgreSQL 드라이버(psycopg2), boto3 포함
+        image: ghcr.io/mlflow/mlflow:v3.17.2-full
+        envFrom:
+        - secretRef:
+            name: mlflow
+        env:
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: http://seaweedfs.kubeflow.svc.cluster.local:9000
+        - name: AWS_DEFAULT_REGION
+          value: us-east-1
+        command: ["sh", "-c"]
+        # allowed-hosts: LAN 에서 노드 IP:NodePort 로 접근하므로 Host 헤더 제한을 끔
+        args:
+        - >-
+          exec mlflow server --host 0.0.0.0 --port 5000 --workers 2
+          --backend-store-uri "$MLFLOW_BACKEND_STORE_URI"
+          --artifacts-destination s3://mlflow/artifacts
+          --allowed-hosts '*'
+        ports:
+        - name: http
+          containerPort: 5000
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 10
+          failureThreshold: 30
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+spec:
+  type: NodePort
+  selector:
+    app: mlflow
+  ports:
+  - name: http
+    port: 5000
+    targetPort: http
+    nodePort: 30500

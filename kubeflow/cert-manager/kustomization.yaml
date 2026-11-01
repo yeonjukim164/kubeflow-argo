@@ -1,0 +1,7 @@
+# cert-manager + Kubeflow 용 self-signed ClusterIssuer
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kubeflow/manifests//common/cert-manager/base?ref=26.03.1
+- https://github.com/kubeflow/manifests//common/cert-manager/overlays/kubeflow?ref=26.03.1

@@ -1,0 +1,6 @@
+# Notebook 컨트롤러, Jupyter/Volumes/Tensorboards 웹앱, PVC Viewer
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kubeflow/manifests//applications/notebooks-v1/overlays/istio?ref=26.03.1

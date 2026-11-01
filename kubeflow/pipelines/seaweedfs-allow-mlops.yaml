@@ -1,0 +1,20 @@
+# MLflow(아티팩트)와 Feast(오프라인 데이터)가 같은 SeaweedFS 를 쓰도록 mlops 네임스페이스에서 S3 포트 허용
+# (업스트림 NetworkPolicy 는 Kubeflow Profile 네임스페이스와 istio-system 만 허용)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: seaweedfs-allow-mlops
+  namespace: kubeflow
+spec:
+  podSelector:
+    matchLabels:
+      app: seaweedfs
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: mlops
+    ports:
+    - port: 8333

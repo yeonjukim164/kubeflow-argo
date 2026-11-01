@@ -1,0 +1,7 @@
+# oauth2-proxy(게이트웨이 인증) + Dex(OIDC, 기본 사용자 user@example.com / 12341234)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kubeflow/manifests//common/oauth2-proxy/overlays/m2m-dex-only?ref=26.03.1
+- https://github.com/kubeflow/manifests//common/dex/overlays/oauth2-proxy?ref=26.03.1

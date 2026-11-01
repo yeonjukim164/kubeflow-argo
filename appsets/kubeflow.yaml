@@ -1,0 +1,44 @@
+# kubeflow/* 디렉터리마다 Application 1개 (디렉터리를 추가하면 앱이 자동으로 생김)
+# 각 디렉터리는 kubeflow/manifests 의 고정 버전을 원격 참조하고, 필요한 패치만 갖고 있음
+# 앱 간 순서(CRD → CR 등)는 sync wave 대신 재시도로 맞춤 (Kubeflow 공식 설치도 "성공할 때까지 재적용" 방식)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kubeflow
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+      revision: main
+      directories:
+      - path: kubeflow/*
+  template:
+    metadata:
+      name: '{{.path.basename}}'
+      labels:
+        app.kubernetes.io/part-of: kubeflow
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - ServerSideApply=true
+        - SkipDryRunOnMissingResource=true
+        - RespectIgnoreDifferences=true
+        retry:
+          limit: 20
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m

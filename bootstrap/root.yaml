@@ -1,0 +1,19 @@
+# App of ApplicationSets: appsets/ 의 ApplicationSet 들을 관리 (최초 1회 kubectl apply -f)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+    targetRevision: main
+    path: appsets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

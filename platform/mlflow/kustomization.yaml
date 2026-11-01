@@ -1,0 +1,11 @@
+# MLflow 3.17 트래킹 서버 + 모델 레지스트리
+#  - 메타데이터: PostgreSQL (mlops/postgres, DB mlflow)
+#  - 아티팩트: SeaweedFS(Kubeflow Pipelines 의 S3) 버킷 mlflow. 서버가 아티팩트를 프록시하므로 클라이언트는 S3 키가 필요 없음
+#  - UI/API: http://<노드 IP>:30500
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: mlops
+
+resources:
+- mlflow.yaml
+- create-bucket.yaml

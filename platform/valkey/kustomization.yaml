@@ -1,0 +1,7 @@
+# Feast 온라인 스토어 (Redis 대신 Valkey, Redis 프로토콜 호환). 비밀번호는 Secret "valkey"
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: mlops
+
+resources:
+- valkey.yaml

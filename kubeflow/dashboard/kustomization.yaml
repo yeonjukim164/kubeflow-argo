@@ -1,0 +1,6 @@
+# Central Dashboard + Profiles 컨트롤러(KFAM) + PodDefaults admission webhook
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kubeflow/manifests//applications/dashboard/overlays/istio?ref=26.03.1

@@ -1,0 +1,20 @@
+# kubeflow-gateway HTTPS 인증서 (cert-manager 의 Kubeflow self-signed ClusterIssuer 로 발급)
+# 게이트웨이(istio-ingressgateway)가 읽을 수 있도록 istio-system 에 Secret 을 만듦
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kubeflow-gateway-tls
+  namespace: istio-system
+spec:
+  secretName: kubeflow-gateway-tls
+  commonName: kubeflow.home.arpa
+  dnsNames:
+  - kubeflow.home.arpa
+  ipAddresses:
+  - 192.168.0.31
+  - 192.168.0.32
+  - 192.168.0.33
+  - 192.168.0.34
+  issuerRef:
+    kind: ClusterIssuer
+    name: kubeflow-self-signing-issuer

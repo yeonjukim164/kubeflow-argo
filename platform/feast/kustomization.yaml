@@ -1,0 +1,10 @@
+# Feast FeatureStore "mlops" (Feast Operator 가 서버/UI 를 배포)
+#  - 레지스트리: PostgreSQL (DB feast)
+#  - 온라인 스토어: Valkey (Feast 의 redis 타입으로 접속)
+#  - 접속 설정은 Secret "feast-data-stores" (bootstrap/create-secrets.sh 가 생성)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: mlops
+
+resources:
+- featurestore.yaml

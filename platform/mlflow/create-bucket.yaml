@@ -1,0 +1,30 @@
+# 아티팩트 버킷 생성 (없을 때만). Argo CD 가 sync 할 때마다 실행되는 훅
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mlflow-create-bucket
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: aws
+        image: amazon/aws-cli:2.39.3
+        envFrom:
+        - secretRef:
+            name: mlflow
+        env:
+        - name: AWS_DEFAULT_REGION
+          value: us-east-1
+        - name: S3
+          value: http://seaweedfs.kubeflow.svc.cluster.local:9000
+        command: ["sh", "-ec"]
+        args:
+        - |
+          aws --endpoint-url "$S3" s3api head-bucket --bucket mlflow 2>/dev/null \
+            || aws --endpoint-url "$S3" s3api create-bucket --bucket mlflow
+          aws --endpoint-url "$S3" s3 ls

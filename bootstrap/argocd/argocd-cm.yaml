@@ -1,0 +1,21 @@
+# Kubeflow 를 Argo CD 로 관리할 때 생기는 영구 diff 무시
+#  - caBundle: cert-manager / istiod 가 런타임에 주입
+#  - failurePolicy: istiod 가 검증 웹훅을 준비되면 Fail 로 바꿈
+#  - 집계(aggregated) ClusterRole 의 rules: 컨트롤러가 채움
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.compareoptions: |
+    ignoreAggregatedRoles: true
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+    jqPathExpressions:
+    - '.webhooks[]?.clientConfig.caBundle'
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_ValidatingWebhookConfiguration: |
+    jqPathExpressions:
+    - '.webhooks[]?.clientConfig.caBundle'
+    - '.webhooks[]?.failurePolicy'
+  resource.customizations.ignoreDifferences.apiextensions.k8s.io_CustomResourceDefinition: |
+    jqPathExpressions:
+    - '.spec.conversion.webhook.clientConfig.caBundle'

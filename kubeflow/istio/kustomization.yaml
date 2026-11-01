@@ -1,0 +1,32 @@
+# Istio 1.30 (Istio CNI 사용 → Cilium 은 cni-exclusive: false 여야 함) + oauth2-proxy 연동
+# 홈랩에는 LoadBalancer 가 없어서 ingressgateway 를 NodePort 로 노출: https://<노드 IP>:30443
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kubeflow/manifests//common/istio/istio-crds/base?ref=26.03.1
+- https://github.com/kubeflow/manifests//common/istio/istio-namespace/base?ref=26.03.1
+- https://github.com/kubeflow/manifests//common/istio/istio-install/overlays/oauth2-proxy?ref=26.03.1
+
+patches:
+- target:
+    kind: Service
+    name: istio-ingressgateway
+    namespace: istio-system
+  patch: |-
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: istio-ingressgateway
+      namespace: istio-system
+    spec:
+      type: NodePort
+      ports:
+      - name: http2
+        port: 80
+        protocol: TCP
+        nodePort: 30080
+      - name: https
+        port: 443
+        protocol: TCP
+        nodePort: 30443

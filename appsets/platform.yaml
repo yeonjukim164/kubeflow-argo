@@ -1,0 +1,44 @@
+# platform/* 디렉터리마다 Application 1개: MLflow, Feast, Valkey, PostgreSQL (namespace: mlops)
+# 비밀번호 Secret 은 저장소에 두지 않음 → bootstrap/create-secrets.sh 로 클러스터에 먼저 생성
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+      revision: main
+      directories:
+      - path: platform/*
+  template:
+    metadata:
+      name: '{{.path.basename}}'
+      labels:
+        app.kubernetes.io/part-of: mlops-platform
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: mlops
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+        - SkipDryRunOnMissingResource=true
+        retry:
+          limit: 20
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m

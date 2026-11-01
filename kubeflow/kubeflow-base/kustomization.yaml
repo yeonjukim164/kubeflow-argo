@@ -1,0 +1,28 @@
+# kubeflow 네임스페이스, 멀티테넌시 ClusterRole, kubeflow-gateway
+# Kubeflow 웹앱은 Secure 쿠키를 써서 HTTP 로는 로그인이 안 됨 → 게이트웨이에 HTTPS(self-signed) 추가
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kubeflow/manifests//common/kubeflow-namespace/base?ref=26.03.1
+- https://github.com/kubeflow/manifests//common/kubeflow-roles/base?ref=26.03.1
+- https://github.com/kubeflow/manifests//common/istio/kubeflow-istio-resources/base?ref=26.03.1
+- gateway-certificate.yaml
+
+patches:
+- target:
+    kind: Gateway
+    name: kubeflow-gateway
+  patch: |-
+    - op: add
+      path: /spec/servers/-
+      value:
+        port:
+          number: 443
+          name: https
+          protocol: HTTPS
+        hosts:
+        - "*"
+        tls:
+          mode: SIMPLE
+          credentialName: kubeflow-gateway-tls
