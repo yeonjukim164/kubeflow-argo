@@ -6,3 +6,4 @@ kind: Kustomization
 resources:
 - https://github.com/kubeflow/manifests//applications/pipeline/overlays?ref=26.03.1
 - seaweedfs-allow-mlops.yaml
+- seaweedfs-nodeport.yaml

@@ -3,11 +3,14 @@ kind: Service
 metadata:
   name: valkey
 spec:
+  # LAN 에서 Feast 클라이언트가 접속: <노드 IP>:30379 (비밀번호 필수)
+  type: NodePort
   selector:
     app: valkey
   ports:
   - name: valkey
     port: 6379
+    nodePort: 30379
 ---
 apiVersion: apps/v1
 kind: StatefulSet
