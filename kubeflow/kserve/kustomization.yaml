@@ -1,0 +1,21 @@
+# KServe v0.18.0 (kubeflow/manifests 26.03.1 고정 버전) + 모델 웹앱(대시보드의 KServe Endpoints)
+# Knative 를 설치하지 않으므로 기본 배포 모드를 Serverless(Knative) 대신 Standard(Deployment + Service + HPA)로 바꿈
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kubeflow/manifests//applications/kserve/kserve?ref=26.03.1
+- https://github.com/kubeflow/manifests//applications/kserve/models-web-app/overlays/kubeflow?ref=26.03.1
+
+patches:
+- patch: |-
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: inferenceservice-config
+      namespace: kubeflow
+    data:
+      deploy: |-
+        {
+          "defaultDeploymentMode": "Standard"
+        }

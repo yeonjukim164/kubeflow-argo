@@ -44,6 +44,7 @@ platform/
 | dashboard | Central Dashboard, Profiles(KFAM), PodDefaults 웹훅 | 2.0.0 |
 | notebooks | Notebook 컨트롤러, Jupyter/Volumes/Tensorboards 웹앱 | 1.11.0 |
 | user-namespace | 기본 Profile `kubeflow-user-example-com` | - |
+| kserve | KServe 컨트롤러(Standard 모드, Knative 없음) + 모델 웹앱(KServe Endpoints) | 0.18.0 |
 | postgres | MLflow·Feast 공용 DB | 18.6 |
 | valkey | Feast 온라인 스토어 | 9.1.3 |
 | mlflow | 트래킹 서버 + 모델 레지스트리 | 3.17.2 |
