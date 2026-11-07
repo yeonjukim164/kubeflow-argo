@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: evidently-workspace
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evidently-ui
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: evidently-ui}
+  template:
+    metadata:
+      labels: {app: evidently-ui}
+    spec:
+      containers:
+      - name: evidently-ui
+        image: python:3.12-slim
+        # Evidently 최신 0.7.23. pandas 3 에서는 import 오류라 pandas<3 (이미지를 따로 만들지 않고 시작할 때 설치)
+        command: ["sh", "-c", "pip install -q --root-user-action=ignore 'evidently==0.7.23' 'pandas<3' && exec evidently ui --host 0.0.0.0 --port 8000 --workspace /workspace"]
+        ports:
+        - containerPort: 8000
+        readinessProbe:
+          httpGet: {path: /, port: 8000}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests: {cpu: 100m, memory: 256Mi}
+          limits: {memory: 1Gi}
+        volumeMounts:
+        - {name: workspace, mountPath: /workspace}
+      volumes:
+      - name: workspace
+        persistentVolumeClaim: {claimName: evidently-workspace}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: evidently-ui
+spec:
+  type: NodePort
+  selector: {app: evidently-ui}
+  ports:
+  - {name: http, port: 8000, targetPort: 8000, nodePort: 30800}
