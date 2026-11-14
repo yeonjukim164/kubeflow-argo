@@ -4,3 +4,11 @@ kind: Kustomization
 
 resources:
 - https://github.com/kubeflow/manifests//applications/notebooks-v1/overlays/istio?ref=26.03.1
+
+# New notebook 양식의 기본값과 선택지: 직접 만든 이미지와 노드 선택(어피니티) 그룹을 추가
+configMapGenerator:
+- name: jupyter-web-app-config
+  namespace: kubeflow
+  behavior: replace
+  files:
+  - spawner_ui_config.yaml
