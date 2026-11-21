@@ -42,11 +42,14 @@ spec:
     spec:
       serviceAccountName: default-editor
       restartPolicy: Never
+      imagePullSecrets:
+      - name: ghcr-pull                     # 비공개 GHCR 이미지
       containers:
       - name: submit
-        image: python:3.11-slim
+        # 9장의 학습 이미지에 KFP SDK 가 들어 있다. Job 이 뜰 때마다 pip 로 설치하면 7분 넘게 걸렸다.
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
         command: ["sh", "-c"]
-        args: ["pip install --quiet --no-cache-dir kfp==2.16.1 kfp-kubernetes==2.16.1 && python /code/submit.py"]
+        args: ["python /code/submit.py"]
         env:
         - {name: RUN_NAME, value: {{ $runName }}}
         - {name: GIT_REVISION, value: {{ .Values.revision | quote }}}
