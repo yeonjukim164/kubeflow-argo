@@ -1,0 +1,42 @@
+# kfp-runs/runs/*.yaml 파일마다 Application 1개. 파일 하나가 KFP 실행 하나의 선언이다.
+# 파일을 추가하거나 파라미터를 고쳐서 커밋하면 Argo CD 가 차트(kfp-runs/chart)를 렌더링하고, PostSync 훅 Job 이 KFP 에 제출한다.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kfp-runs
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+      revision: main
+      files:
+      - path: kfp-runs/runs/*.yaml
+  template:
+    metadata:
+      name: 'kfp-run-{{ .path.filename | trimSuffix ".yaml" }}'
+      labels:
+        app.kubernetes.io/part-of: kfp-runs
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+        targetRevision: main
+        path: kfp-runs/chart
+        helm:
+          valueFiles:
+          - '../runs/{{ .path.filename }}'
+          parameters:
+          - name: name
+            value: '{{ .path.filename | trimSuffix ".yaml" }}'
+          - name: revision
+            value: $ARGOCD_APP_REVISION_SHORT
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: kubeflow-user-example-com
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

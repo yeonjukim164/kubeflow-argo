@@ -1,0 +1,66 @@
+{{- /* 실행의 이름: <파일 이름>-<선언 내용의 해시 7자>. 선언을 고치면 해시가 바뀌어 새 run 이 된다. */ -}}
+{{- $run := dict "pipeline" .Values.pipeline "experiment" .Values.experiment "parameters" (.Values.parameters | default dict) "cache" (.Values.cache | default false) -}}
+{{- $runName := printf "%s-%s" .Values.name ($run | toJson | sha256sum | trunc 7) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kfp-run-{{ .Values.name }}
+  labels: {app.kubernetes.io/part-of: kfp-runs}
+data:
+  run-name: {{ $runName }}
+  run.yaml: |
+{{ $run | toYaml | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kfp-run-{{ .Values.name }}-code
+  labels: {app.kubernetes.io/part-of: kfp-runs}
+data:
+  submit.py: |
+{{ .Files.Get "submit.py" | indent 4 }}
+  {{ .Values.pipeline }}: |
+{{ .Files.Get (printf "pipelines/%s" .Values.pipeline) | indent 4 }}
+---
+# ConfigMap 이 바뀌어 sync 가 일어날 때마다 한 번 실행되는 훅. 훅은 diff 대상이 아니라서 다른 커밋에는 반응하지 않는다.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kfp-run-{{ .Values.name }}-submit
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        access-ml-pipeline: "true"          # PodDefault 가 KFP 용 토큰을 마운트한다
+      annotations:
+        sidecar.istio.io/inject: "false"    # 사이드카가 있으면 Job 이 끝나지 않는다
+    spec:
+      serviceAccountName: default-editor
+      restartPolicy: Never
+      containers:
+      - name: submit
+        image: python:3.11-slim
+        command: ["sh", "-c"]
+        args: ["pip install --quiet --no-cache-dir kfp==2.16.1 kfp-kubernetes==2.16.1 && python /code/submit.py"]
+        env:
+        - {name: RUN_NAME, value: {{ $runName }}}
+        - {name: GIT_REVISION, value: {{ .Values.revision | quote }}}
+        - name: NAMESPACE
+          valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
+        resources:
+          requests: {cpu: 100m, memory: 256Mi}
+          limits: {memory: 512Mi}
+        volumeMounts:
+        - {name: spec, mountPath: /spec}
+        - {name: code, mountPath: /code}
+        - {name: code, mountPath: /pipelines}
+      volumes:
+      - name: spec
+        configMap: {name: kfp-run-{{ .Values.name }}}
+      - name: code
+        configMap: {name: kfp-run-{{ .Values.name }}-code}

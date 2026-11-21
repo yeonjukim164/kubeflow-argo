@@ -1,0 +1,4 @@
+apiVersion: v2
+name: kfp-run
+description: Git 에 선언한 KFP 실행 하나를 제출한다 (ConfigMap = 선언, PostSync Job = 제출)
+version: 0.1.0

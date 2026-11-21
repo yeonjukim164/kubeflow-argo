@@ -1,0 +1,970 @@
+# PIPELINE DEFINITION
+# Name: reco-full
+# Inputs:
+#    batch: int [Default: 32768.0]
+#    bucket: str [Default: 'mlpipeline']
+#    dataset: str [Default: 'private-artifacts/kubeflow-user-example-com/datasets/goodbooks-10k']
+#    epochs: int [Default: 30.0]
+#    exp: str [Default: 'recommender']
+#    factors: int [Default: 20.0]
+#    hidden: int [Default: 256.0]
+#    hot: str [Default: 'none']
+#    lr: float [Default: 0.001]
+#    neg: int [Default: 10.0]
+#    opt: str [Default: 'SGD']
+#    prec_th: float [Default: -0.3]
+#    rec_th: float [Default: -0.2]
+#    registered: str [Default: 'recommender_production']
+#    rmse_th: float [Default: 0.0001]
+#    threshold: int [Default: 3.0]
+#    top_k: int [Default: 50.0]
+#    uri: str [Default: 'http://mlflow.mlops.svc.cluster.local:5000']
+components:
+  comp-get-dataset-metadata:
+    executorLabel: exec-get-dataset-metadata
+    inputDefinitions:
+      parameters:
+        bucket:
+          parameterType: STRING
+        dataset_name:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRUCT
+  comp-get-test-valid-dataset:
+    executorLabel: exec-get-test-valid-dataset
+    inputDefinitions:
+      parameters:
+        bucket:
+          parameterType: STRING
+        dataset_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        testing_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        validation_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-negative-sampling:
+    executorLabel: exec-negative-sampling
+    inputDefinitions:
+      parameters:
+        bucket:
+          parameterType: STRING
+        dataset_name:
+          parameterType: STRING
+        num_ng_test:
+          parameterType: NUMBER_INTEGER
+        seed:
+          defaultValue: 42.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        split:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        negative_sampled_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-promote-model-to-staging:
+    executorLabel: exec-promote-model-to-staging
+    inputDefinitions:
+      parameters:
+        mlflow_uri:
+          parameterType: STRING
+        model_run_id:
+          parameterType: STRING
+        precision_threshold:
+          parameterType: NUMBER_DOUBLE
+        recall_threshold:
+          parameterType: NUMBER_DOUBLE
+        registered_model_name:
+          parameterType: STRING
+        rmse_threshold:
+          parameterType: NUMBER_DOUBLE
+        top_k:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-qa-data:
+    executorLabel: exec-qa-data
+    inputDefinitions:
+      parameters:
+        bucket:
+          parameterType: STRING
+        dataset_name:
+          parameterType: STRING
+  comp-train-model:
+    executorLabel: exec-train-model
+    inputDefinitions:
+      artifacts:
+        testing_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        training_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        hot_reload_model_run_id:
+          parameterType: STRING
+        mlflow_dataset:
+          parameterType: STRING
+        mlflow_experiment_name:
+          parameterType: STRING
+        mlflow_kfp_run_id:
+          parameterType: STRING
+        mlflow_run_id:
+          parameterType: STRING
+        mlflow_uri:
+          parameterType: STRING
+        model_dropout_rate:
+          parameterType: NUMBER_DOUBLE
+        model_embedding_factors:
+          parameterType: NUMBER_INTEGER
+        model_hidden_dims:
+          parameterType: NUMBER_INTEGER
+        model_learning_rate:
+          parameterType: NUMBER_DOUBLE
+        model_optimizer:
+          parameterType: STRING
+        optimizer_gamma:
+          parameterType: NUMBER_DOUBLE
+        optimizer_step_size:
+          parameterType: NUMBER_INTEGER
+        shuffle_training_data:
+          parameterType: BOOLEAN
+        test_batch_size:
+          parameterType: NUMBER_INTEGER
+        train_batch_size:
+          parameterType: NUMBER_INTEGER
+        training_data_metadata:
+          parameterType: STRUCT
+        training_epochs:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-validate-model:
+    executorLabel: exec-validate-model
+    inputDefinitions:
+      artifacts:
+        validation_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        mlflow_uri:
+          parameterType: STRING
+        model_run_id:
+          parameterType: STRING
+        threshold:
+          parameterType: NUMBER_INTEGER
+        top_k:
+          parameterType: NUMBER_INTEGER
+        val_batch_size:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      artifacts:
+        metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-get-dataset-metadata:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - get_dataset_metadata
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
+          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef get_dataset_metadata(bucket: str, dataset_name: str) -> dict:\n\
+          \    \"\"\"\uC784\uBCA0\uB529 \uD45C\uC758 \uD06C\uAE30\uB97C \uC815\uD558\
+          \uB294 \uAC12: \uC0AC\uC6A9\uC790 ID \uC640 \uB3C4\uC11C ID \uC758 \uCD5C\
+          \uB313\uAC12.\"\"\"\n    from pyarrow import fs, parquet\n\n    s3 = fs.S3FileSystem(endpoint_override=\"\
+          http://seaweedfs.kubeflow.svc.cluster.local:9000\", scheme=\"http\")\n \
+          \   df = parquet.read_table(s3.open_input_file(f\"{bucket}/{dataset_name}/train.parquet\"\
+          )).to_pandas()\n    meta = {\"n_users\": int(df[\"user_id\"].max()), \"\
+          n_items\": int(df[\"book_id\"].max()),\n            \"train_users\": int(df[\"\
+          user_id\"].nunique()), \"train_items\": int(df[\"book_id\"].nunique())}\n\
+          \    print(\"[ch09] metadata:\", meta, flush=True)\n    return meta\n\n"
+        env:
+        - name: AWS_DEFAULT_REGION
+          value: us-east-1
+        image: python:3.11-slim
+        resources:
+          memoryLimit: 2.0
+          memoryRequest: 1.0
+          resourceMemoryLimit: 2G
+          resourceMemoryRequest: 1G
+    exec-get-test-valid-dataset:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - get_test_valid_dataset
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
+          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef get_test_valid_dataset(bucket: str, dataset_name: str, testing_dataset:\
+          \ Output[Dataset],\n                           validation_dataset: Output[Dataset]):\n\
+          \    \"\"\"test, val \uC740 \uC2E4\uC81C \uD3C9\uC810 \uADF8\uB300\uB85C\
+          \ \uC544\uD2F0\uD329\uD2B8\uB85C \uC62E\uAE34\uB2E4(\uB124\uAC70\uD2F0\uBE0C\
+          \uB97C \uBD99\uC774\uC9C0 \uC54A\uB294\uB2E4).\"\"\"\n    from pyarrow import\
+          \ fs, parquet\n\n    s3 = fs.S3FileSystem(endpoint_override=\"http://seaweedfs.kubeflow.svc.cluster.local:9000\"\
+          , scheme=\"http\")\n    for split, out in ((\"test\", testing_dataset),\
+          \ (\"val\", validation_dataset)):\n        t = parquet.read_table(s3.open_input_file(f\"\
+          {bucket}/{dataset_name}/{split}.parquet\"))\n        parquet.write_table(t,\
+          \ out.path)\n        out.metadata.update({\"rows\": t.num_rows})\n     \
+          \   print(f\"[ch09] {split} rows {t.num_rows}\", flush=True)\n\n"
+        env:
+        - name: AWS_DEFAULT_REGION
+          value: us-east-1
+        image: python:3.11-slim
+        resources:
+          memoryLimit: 2.0
+          memoryRequest: 1.0
+          resourceMemoryLimit: 2G
+          resourceMemoryRequest: 1G
+    exec-negative-sampling:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - negative_sampling
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
+          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef negative_sampling(bucket: str, dataset_name: str, split: str,\
+          \ num_ng_test: int,\n                      negative_sampled_dataset: Output[Dataset],\
+          \ seed: int = 42):\n    \"\"\"\uC0AC\uC6A9\uC790\uB9C8\uB2E4 \uD3C9\uAC00\
+          \uD558\uC9C0 \uC54A\uC740 \uCC45\uC744 num_ng_test \uAD8C \uBF51\uC544 rating=0\
+          \ \uC73C\uB85C \uBD99\uC778\uB2E4.\n    \uC0AC\uC6A9\uC790\uBCC4 \uBC18\uBCF5\
+          \uBB38 \uB300\uC2E0 \uC804\uCCB4 \uC0AC\uC6A9\uC790\uB97C \uD55C \uBC88\uC5D0\
+          \ \uBF51\uACE0, \uC774\uBBF8 \uD3C9\uAC00\uD55C \uCC45\uC774\uB098 \uC911\
+          \uBCF5\uB9CC \uB2E4\uC2DC \uBF51\uB294\uB2E4.\"\"\"\n    import time\n \
+          \   import numpy as np\n    import pandas as pd\n    from pyarrow import\
+          \ fs, parquet\n\n    s3 = fs.S3FileSystem(endpoint_override=\"http://seaweedfs.kubeflow.svc.cluster.local:9000\"\
+          , scheme=\"http\")\n    df = parquet.read_table(s3.open_input_file(f\"{bucket}/{dataset_name}/{split}.parquet\"\
+          )).to_pandas()\n    t0 = time.time()\n    n_items = int(df[\"book_id\"].max())\n\
+          \    rng = np.random.default_rng(seed)\n    users = np.repeat(np.sort(df[\"\
+          user_id\"].unique()), num_ng_test)\n    seen = np.unique(df[\"user_id\"\
+          ].to_numpy(np.int64) * (n_items + 1) + df[\"book_id\"].to_numpy(np.int64))\n\
+          \    items = rng.integers(1, n_items + 1, size=len(users))\n    rounds =\
+          \ 0\n    while True:\n        rounds += 1\n        key = users * (n_items\
+          \ + 1) + items\n        bad = np.isin(key, seen)                    # \uC774\
+          \uBBF8 \uD3C9\uAC00\uD55C \uCC45\n        _, first = np.unique(key, return_index=True)\n\
+          \        dup = np.ones(len(key), dtype=bool)\n        dup[first] = False\
+          \                          # \uAC19\uC740 \uC0AC\uC6A9\uC790\uC5D0\uAC8C\
+          \ \uAC19\uC740 \uCC45\uC774 \uB450 \uBC88 \uBF51\uD798\n        bad |= dup\n\
+          \        if not bad.any():\n            break\n        items[bad] = rng.integers(1,\
+          \ n_items + 1, size=int(bad.sum()))\n    ng = pd.DataFrame({\"user_id\"\
+          : users, \"book_id\": items, \"rating\": 0})\n    out = pd.concat([df[[\"\
+          user_id\", \"book_id\", \"rating\"]], ng], ignore_index=True)\n    out.to_parquet(negative_sampled_dataset.path,\
+          \ engine=\"pyarrow\", index=False)\n    negative_sampled_dataset.metadata.update({\"\
+          rows\": len(out), \"negatives\": len(ng), \"seed\": seed})\n    print(f\"\
+          [ch09] before {len(df)} after {len(out)} negatives {len(ng)} users {df['user_id'].nunique()}\
+          \ \"\n          f\"rounds {rounds} {time.time() - t0:.1f}s\", flush=True)\n\
+          \n"
+        env:
+        - name: AWS_DEFAULT_REGION
+          value: us-east-1
+        image: python:3.11-slim
+        resources:
+          memoryLimit: 2.0
+          memoryRequest: 1.0
+          resourceMemoryLimit: 2G
+          resourceMemoryRequest: 1G
+    exec-promote-model-to-staging:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - promote_model_to_staging
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'mlflow==3.17.2'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef promote_model_to_staging(model_run_id: str, registered_model_name:\
+          \ str, top_k: int, rmse_threshold: float,\n                            \
+          \ precision_threshold: float, recall_threshold: float, mlflow_uri: str)\
+          \ -> str:\n    \"\"\"\uC0C8 run \uC758 \uC9C0\uD45C\uAC00 \uC9C0\uAE08 staging\
+          \ \uC778 run \uBCF4\uB2E4 \uD5C8\uC6A9 \uD3ED \uB118\uAC8C \uB098\uBE60\uC9C0\
+          \uC9C0 \uC54A\uC558\uC73C\uBA74 \uB4F1\uB85D\uD558\uACE0 staging \uBCC4\uCE6D\
+          \uC744 \uC62E\uAE34\uB2E4.\n    \uACB0\uC815 \uB0B4\uC6A9\uC744 \uB3CC\uB824\
+          \uC8FC\uBBC0\uB85C KFP \uD654\uBA74\uC758 \uCD9C\uB825\uC5D0\uC11C\uB3C4\
+          \ \uC2B9\uACA9\uD588\uB294\uC9C0 \uBCFC \uC218 \uC788\uB2E4.\"\"\"\n   \
+          \ import mlflow\n    from mlflow import MlflowClient\n    from mlflow.exceptions\
+          \ import MlflowException\n\n    mlflow.set_tracking_uri(mlflow_uri)\n  \
+          \  client = MlflowClient()\n    try:\n        current = client.get_model_version_by_alias(registered_model_name,\
+          \ \"staging\")\n    except MlflowException:\n        current = None\n  \
+          \      print(\"[ch09] No staging model found. Promote this run.\", flush=True)\n\
+          \    if current is not None:\n        if current.run_id == model_run_id:\n\
+          \            return f\"SKIP: run is already staging (v{current.version})\"\
+          \n        old, new = client.get_run(current.run_id).data.metrics, client.get_run(model_run_id).data.metrics\n\
+          \        diff = {k: new[k] - old[k] for k in (\"rmse\", f\"precision_{top_k}\"\
+          , f\"recall_{top_k}\")}\n        print(f\"[ch09] staging v{current.version}\
+          \ {old}\", flush=True)\n        print(f\"[ch09] new {new}\", flush=True)\n\
+          \        print(f\"[ch09] diff {diff}\", flush=True)\n        reason = None\n\
+          \        if diff[\"rmse\"] > rmse_threshold:\n            reason = f\"rmse\
+          \ worse by {diff['rmse']:.4f} (allowed {rmse_threshold})\"\n        elif\
+          \ diff[f\"precision_{top_k}\"] < precision_threshold:\n            reason\
+          \ = f\"precision change {diff[f'precision_{top_k}']:.4f} (required >= {precision_threshold})\"\
+          \n        elif diff[f\"recall_{top_k}\"] < recall_threshold:\n         \
+          \   reason = f\"recall change {diff[f'recall_{top_k}']:.4f} (required >=\
+          \ {recall_threshold})\"\n        if reason:\n            print(\"[ch09]\
+          \ REJECT:\", reason, flush=True)\n            return f\"REJECT: {reason};\
+          \ staging stays v{current.version}\"\n    result = mlflow.register_model(f\"\
+          runs:/{model_run_id}/model\", registered_model_name)\n    client.set_registered_model_alias(registered_model_name,\
+          \ \"staging\", result.version)\n    print(f\"[ch09] PROMOTE: {registered_model_name}\
+          \ v{result.version} is now staging\", flush=True)\n    return f\"PROMOTE:\
+          \ v{result.version} is now staging\"\n\n"
+        image: python:3.11-slim
+    exec-qa-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - qa_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
+          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef qa_data(bucket: str, dataset_name: str):\n    \"\"\"\uD559\uC2B5\
+          \uC5D0 \uC4F0\uAE30 \uC9C1\uC804\uC5D0 \uC2A4\uD0A4\uB9C8, \uC790\uB8CC\uD615\
+          , \uBE48 \uAC12, \uD3C9\uC810 \uBC94\uC704\uB97C \uB2E4\uC2DC \uD655\uC778\
+          \uD55C\uB2E4.\"\"\"\n    from pyarrow import fs, parquet\n\n    s3 = fs.S3FileSystem(endpoint_override=\"\
+          http://seaweedfs.kubeflow.svc.cluster.local:9000\", scheme=\"http\")\n \
+          \   print(\"[ch09] Running QA\", flush=True)\n    for split in (\"train\"\
+          , \"val\", \"test\"):\n        df = parquet.read_table(s3.open_input_file(f\"\
+          {bucket}/{dataset_name}/{split}.parquet\")).to_pandas()\n        print(f\"\
+          [ch09] {split} {df.shape} {dict(df.dtypes.astype(str))}\", flush=True)\n\
+          \        assert {\"user_id\", \"book_id\", \"rating\"}.issubset(df.columns),\
+          \ f\"Required columns not found. Found {list(df.columns)}\"\n        assert\
+          \ all(str(t) == \"int64\" for t in df[[\"user_id\", \"book_id\", \"rating\"\
+          ]].dtypes), \"ids and rating must be int64\"\n        assert int(df.isna().sum().sum())\
+          \ == 0, \"null values found\"\n        assert df[\"rating\"].between(1,\
+          \ 5).all(), \"rating out of range 1..5\"\n        assert (df[[\"user_id\"\
+          , \"book_id\"]] >= 1).all().all(), \"ids must start at 1\"\n    print(\"\
+          [ch09] QA passed!\", flush=True)\n\n"
+        env:
+        - name: AWS_DEFAULT_REGION
+          value: us-east-1
+        image: python:3.11-slim
+        resources:
+          memoryLimit: 2.0
+          memoryRequest: 1.0
+          resourceMemoryLimit: 2G
+          resourceMemoryRequest: 1G
+    exec-train-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
+          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
+          \ --trusted-host https://pypi.org/simple 'torch==2.15.0' 'mlflow==3.17.2'\
+          \ 'pandas==2.3.3' 'pyarrow==25.0.1' 'torchinfo==1.8.0'  &&  python3 -m pip\
+          \ install --quiet --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
+          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
+          \ --trusted-host https://pypi.org/simple 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_model(mlflow_experiment_name: str, mlflow_run_id: str,\
+          \ mlflow_kfp_run_id: str, mlflow_dataset: str,\n                hot_reload_model_run_id:\
+          \ str,\n                model_embedding_factors: int, model_learning_rate:\
+          \ float, model_hidden_dims: int,\n                model_dropout_rate: float,\
+          \ model_optimizer: str, optimizer_step_size: int, optimizer_gamma: float,\
+          \ training_epochs: int,\n                train_batch_size: int, test_batch_size:\
+          \ int, shuffle_training_data: bool,\n                training_data: Input[Dataset],\
+          \ training_data_metadata: dict, testing_data: Input[Dataset],\n        \
+          \        mlflow_uri: str) -> str:\n    \"\"\"\uD589\uB82C \uBD84\uD574 \uBAA8\
+          \uB378\uC744 \uD559\uC2B5\uD558\uACE0 \uD558\uC774\uD37C\uD30C\uB77C\uBBF8\
+          \uD130, epoch \uBCC4 \uC190\uC2E4, \uBAA8\uB378\uC744 MLflow \uC5D0 \uB0A8\
+          \uAE34\uB2E4. \uB3CC\uB824\uC8FC\uB294 \uAC12\uC740 MLflow run ID.\"\"\"\
+          \n    input_params = {k: v for k, v in locals().items() if not k.startswith((\"\
+          mlflow_\", \"training_data\", \"testing_data\"))}\n    import time\n   \
+          \ import mlflow\n    import numpy as np\n    import pandas as pd\n    import\
+          \ torch\n    from mlflow.models import infer_signature\n    from torchinfo\
+          \ import summary\n\n    class MatrixFactorization(torch.nn.Module):\n  \
+          \      def __init__(self, n_users, n_items, n_factors, hidden_dim, dropout_rate):\n\
+          \            super().__init__()\n            self.n_items = n_items\n  \
+          \          self.user_factors = torch.nn.Embedding(n_users + 1, n_factors)\
+          \   # ID \uAC00 1 \uBD80\uD130\uB77C\uC11C +1\n            self.item_factors\
+          \ = torch.nn.Embedding(n_items + 1, n_factors)\n            self.linear\
+          \ = torch.nn.Linear(in_features=n_factors, out_features=hidden_dim)\n  \
+          \          self.linear2 = torch.nn.Linear(in_features=hidden_dim, out_features=1)\n\
+          \            self.dropout = torch.nn.Dropout(p=dropout_rate)\n         \
+          \   self.relu = torch.nn.ReLU()\n\n        def forward(self, user, item):\n\
+          \            x = torch.mul(self.user_factors(user), self.item_factors(item))\n\
+          \            x = self.dropout(self.relu(self.linear(x)))\n            return\
+          \ self.linear2(x)\n\n    def tensors(path):\n        df = pd.read_parquet(path)\n\
+          \        return (torch.tensor(df[\"user_id\"].to_numpy(np.int64)), torch.tensor(df[\"\
+          book_id\"].to_numpy(np.int64)),\n                torch.tensor(df[\"rating\"\
+          ].to_numpy(np.float32)))\n\n    # \uC5F0\uC0B0\uC774 \uC791\uC740 \uBAA8\
+          \uB378\uC774\uB77C \uC2A4\uB808\uB4DC\uB97C \uB298\uB824\uB3C4 \uBE68\uB77C\
+          \uC9C0\uC9C0 \uC54A\uB294\uB2E4. \uAE30\uBCF8\uAC12(\uB178\uB4DC\uC758 CPU\
+          \ \uC218 28)\uC774\uB098 4\uB85C \uB450\uBA74 \uC2A4\uB808\uB4DC\uB07C\uB9AC\
+          \ \uAE30\uB2E4\uB9AC\uB290\uB77C 10\uBC30 \uB118\uAC8C \uB290\uB824\uC84C\
+          \uB2E4.\n    torch.set_num_threads(1)\n    mlflow.set_tracking_uri(mlflow_uri)\n\
+          \    U, I, R = tensors(training_data.path)\n    tU, tI, tR = tensors(testing_data.path)\n\
+          \    n_users, n_items = training_data_metadata[\"n_users\"], training_data_metadata[\"\
+          n_items\"]\n    if hot_reload_model_run_id not in (\"\", \"none\"):\n  \
+          \      model = mlflow.pytorch.load_model(f\"runs:/{hot_reload_model_run_id}/model\"\
+          )   # \uC774\uC804 run \uC758 \uBAA8\uB378\uC5D0\uC11C \uC774\uC5B4\uC11C\
+          \ \uD559\uC2B5\n    else:\n        model = MatrixFactorization(n_users,\
+          \ n_items, n_factors=model_embedding_factors, hidden_dim=model_hidden_dims,\n\
+          \                                    dropout_rate=model_dropout_rate)\n\
+          \    optimizer = getattr(torch.optim, model_optimizer)(model.parameters(),\
+          \ lr=model_learning_rate)   # SGD \uB610\uB294 Adam\n    scheduler = torch.optim.lr_scheduler.StepLR(optimizer,\
+          \ step_size=optimizer_step_size, gamma=optimizer_gamma)\n    loss_func =\
+          \ torch.nn.L1Loss()\n\n    mlflow.set_experiment(mlflow_experiment_name)\n\
+          \    run_name = f\"{model_optimizer}-lr{model_learning_rate}-e{training_epochs}\"\
+          \   # MLflow \uD654\uBA74\uC5D0\uC11C \uC2E4\uD589\uC744 \uAD6C\uBD84\uD558\
+          \uAE30 \uC27D\uAC8C\n    with mlflow.start_run(run_id=mlflow_run_id or None,\
+          \ run_name=run_name) as run:\n        mlflow.log_params(input_params)\n\
+          \        mlflow.log_params({\"loss_function\": loss_func.__class__.__name__,\
+          \ \"n_users\": n_users,\n                           \"n_items\": n_items,\
+          \ \"train_rows\": len(U), \"test_rows\": len(tU)})\n        mlflow.set_tags({\"\
+          kfp_run_id\": mlflow_kfp_run_id, \"dataset\": mlflow_dataset})   # \uC5B4\
+          \uB290 KFP run \uC774 \uC5B4\uB5A4 \uB370\uC774\uD130\uB85C \uB9CC\uB4E4\
+          \uC5C8\uB294\uC9C0\n        with open(\"model_summary.txt\", \"w\") as f:\n\
+          \            f.write(str(summary(model)))\n        mlflow.log_artifact(\"\
+          model_summary.txt\")\n        print(open(\"model_summary.txt\").read(),\
+          \ flush=True)\n        model_signature = None\n        for epoch in range(training_epochs):\n\
+          \            t0 = time.time()\n            model.train()\n            order\
+          \ = torch.randperm(len(U)) if shuffle_training_data else torch.arange(len(U))\n\
+          \            t_loss, t_count = 0.0, 0\n            for s in range(0, len(U),\
+          \ train_batch_size):\n                idx = order[s:s + train_batch_size]\n\
+          \                prediction = model(U[idx], I[idx])\n                if\
+          \ model_signature is None:\n                    model_signature = infer_signature({\"\
+          user\": U[idx].numpy(), \"book\": I[idx].numpy()},\n                   \
+          \                                   prediction.detach().numpy())\n     \
+          \           loss = loss_func(prediction, R[idx].unsqueeze(1))\n        \
+          \        loss.backward()\n                optimizer.step()\n           \
+          \     optimizer.zero_grad()\n                t_loss += loss.item()\n   \
+          \             t_count += 1\n            scheduler.step()\n            model.eval()\n\
+          \            te_loss, te_count = 0.0, 0\n            with torch.no_grad():\n\
+          \                for s in range(0, len(tU), test_batch_size):\n        \
+          \            prediction = model(tU[s:s + test_batch_size], tI[s:s + test_batch_size])\n\
+          \                    te_loss += loss_func(prediction, tR[s:s + test_batch_size].unsqueeze(1)).item()\n\
+          \                    te_count += 1\n            mlflow.log_metric(\"avg_training_loss\"\
+          , t_loss / t_count, step=epoch)\n            mlflow.log_metric(\"avg_testing_loss\"\
+          , te_loss / te_count, step=epoch)\n            mlflow.log_metric(\"epoch_seconds\"\
+          , time.time() - t0, step=epoch)\n            print(f\"[ch09] epoch {epoch}\
+          \ train loss {t_loss / t_count:.4f} test loss {te_loss / te_count:.4f} \"\
+          \n                  f\"{time.time() - t0:.1f}s\", flush=True)\n        mlflow.pytorch.log_model(model,\
+          \ name=\"model\", signature=model_signature)\n        print(\"[ch09] mlflow\
+          \ run:\", run.info.run_id, flush=True)\n        return run.info.run_id\n\
+          \n"
+        image: python:3.11-slim
+        resources:
+          cpuLimit: 2.0
+          cpuRequest: 1.0
+          memoryLimit: 3.0
+          memoryRequest: 1.0
+          resourceCpuLimit: '2'
+          resourceCpuRequest: '1'
+          resourceMemoryLimit: 3G
+          resourceMemoryRequest: 1G
+    exec-validate-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - validate_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
+          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
+          \ --trusted-host https://pypi.org/simple 'torch==2.15.0' 'mlflow==3.17.2'\
+          \ 'pandas==2.3.3' 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet\
+          \ --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
+          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
+          \ --trusted-host https://pypi.org/simple 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef validate_model(model_run_id: str, top_k: int, threshold: int,\
+          \ val_batch_size: int,\n                   validation_dataset: Input[Dataset],\
+          \ mlflow_uri: str, metrics: Output[Metrics]):\n    \"\"\"MLflow \uC5D0\uC11C\
+          \ \uBAA8\uB378\uC744 \uBD88\uB7EC\uC640 \uAC80\uC99D \uB370\uC774\uD130\uB85C\
+          \ precision@k, recall@k, RMSE \uB97C \uACC4\uC0B0\uD558\uACE0 \uAC19\uC740\
+          \ MLflow run \uC5D0 \uB367\uBD99\uC778\uB2E4.\"\"\"\n    import mlflow\n\
+          \    import numpy as np\n    import pandas as pd\n    import torch\n\n \
+          \   torch.set_num_threads(1)\n    mlflow.set_tracking_uri(mlflow_uri)\n\
+          \    model = mlflow.pytorch.load_model(f\"runs:/{model_run_id}/model\")\n\
+          \    df = pd.read_parquet(validation_dataset.path)\n    U, I = torch.tensor(df[\"\
+          user_id\"].to_numpy(np.int64)), torch.tensor(df[\"book_id\"].to_numpy(np.int64))\n\
+          \    model.eval()\n    with torch.no_grad():\n        df[\"pred\"] = torch.cat([model(U[s:s\
+          \ + val_batch_size], I[s:s + val_batch_size]).squeeze(1)\n             \
+          \                   for s in range(0, len(U), val_batch_size)]).numpy()\n\
+          \    # \uC0AC\uC6A9\uC790\uB9C8\uB2E4 \uC608\uCE21\uC774 \uB192\uC740 \uC21C\
+          \uC73C\uB85C top_k \uAC1C\uB97C \uBCF4\uACE0, \uC608\uCE21\uACFC \uC2E4\uC81C\
+          \uAC00 \uBAA8\uB450 threshold \uC774\uC0C1\uC778 \uBE44\uC728\uC744 \uC13C\
+          \uB2E4.\n    df[\"rank\"] = df.groupby(\"user_id\")[\"pred\"].rank(method=\"\
+          first\", ascending=False)\n    df[\"rel\"] = df[\"rating\"] >= threshold\n\
+          \    df[\"rec\"] = (df[\"pred\"] >= threshold) & (df[\"rank\"] <= top_k)\n\
+          \    df[\"hit\"] = df[\"rel\"] & df[\"rec\"]\n    g = df.groupby(\"user_id\"\
+          )[[\"rel\", \"rec\", \"hit\"]].sum()\n    precision = float(np.where(g[\"\
+          rec\"] > 0, g[\"hit\"] / g[\"rec\"].clip(lower=1), 1.0).mean())\n    recall\
+          \ = float(np.where(g[\"rel\"] > 0, g[\"hit\"] / g[\"rel\"].clip(lower=1),\
+          \ 1.0).mean())\n    rmse = float(np.sqrt(((df[\"pred\"] - df[\"rating\"\
+          ]) ** 2).mean()))\n    vals = {f\"precision_{top_k}\": precision, f\"recall_{top_k}\"\
+          : recall, \"rmse\": rmse}\n    for k, v in vals.items():\n        mlflow.log_metric(k,\
+          \ v, run_id=model_run_id)   # \uC774\uBBF8 \uB05D\uB09C \uD559\uC2B5 run\
+          \ \uC5D0 \uC9C0\uD45C\uB97C \uB354\uD55C\uB2E4\n        metrics.log_metric(k,\
+          \ round(v, 4))\n    print(f\"[ch09] validation rows {len(df)} users {len(g)}:\"\
+          , {k: round(v, 4) for k, v in vals.items()}, flush=True)\n\n"
+        image: python:3.11-slim
+        resources:
+          memoryLimit: 3.0
+          memoryRequest: 1.0
+          resourceMemoryLimit: 3G
+          resourceMemoryRequest: 1G
+pipelineInfo:
+  name: reco-full
+root:
+  dag:
+    tasks:
+      get-dataset-metadata:
+        cachingOptions: {}
+        componentRef:
+          name: comp-get-dataset-metadata
+        dependentTasks:
+        - qa-data
+        inputs:
+          parameters:
+            bucket:
+              componentInputParameter: bucket
+            dataset_name:
+              componentInputParameter: dataset
+        taskInfo:
+          name: get-dataset-metadata
+      get-test-valid-dataset:
+        cachingOptions: {}
+        componentRef:
+          name: comp-get-test-valid-dataset
+        dependentTasks:
+        - negative-sampling
+        inputs:
+          parameters:
+            bucket:
+              componentInputParameter: bucket
+            dataset_name:
+              componentInputParameter: dataset
+        taskInfo:
+          name: get-test-valid-dataset
+      negative-sampling:
+        cachingOptions: {}
+        componentRef:
+          name: comp-negative-sampling
+        dependentTasks:
+        - get-dataset-metadata
+        inputs:
+          parameters:
+            bucket:
+              componentInputParameter: bucket
+            dataset_name:
+              componentInputParameter: dataset
+            num_ng_test:
+              componentInputParameter: neg
+            split:
+              runtimeValue:
+                constant: train
+        taskInfo:
+          name: negative-sampling
+      promote-model-to-staging:
+        cachingOptions: {}
+        componentRef:
+          name: comp-promote-model-to-staging
+        dependentTasks:
+        - train-model
+        - validate-model
+        inputs:
+          parameters:
+            mlflow_uri:
+              componentInputParameter: uri
+            model_run_id:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: train-model
+            precision_threshold:
+              componentInputParameter: prec_th
+            recall_threshold:
+              componentInputParameter: rec_th
+            registered_model_name:
+              componentInputParameter: registered
+            rmse_threshold:
+              componentInputParameter: rmse_th
+            top_k:
+              componentInputParameter: top_k
+        taskInfo:
+          name: promote-model-to-staging
+      qa-data:
+        cachingOptions: {}
+        componentRef:
+          name: comp-qa-data
+        inputs:
+          parameters:
+            bucket:
+              componentInputParameter: bucket
+            dataset_name:
+              componentInputParameter: dataset
+        taskInfo:
+          name: qa-training-data
+      train-model:
+        cachingOptions: {}
+        componentRef:
+          name: comp-train-model
+        dependentTasks:
+        - get-dataset-metadata
+        - get-test-valid-dataset
+        - negative-sampling
+        inputs:
+          artifacts:
+            testing_data:
+              taskOutputArtifact:
+                outputArtifactKey: testing_dataset
+                producerTask: get-test-valid-dataset
+            training_data:
+              taskOutputArtifact:
+                outputArtifactKey: negative_sampled_dataset
+                producerTask: negative-sampling
+          parameters:
+            hot_reload_model_run_id:
+              componentInputParameter: hot
+            mlflow_dataset:
+              componentInputParameter: dataset
+            mlflow_experiment_name:
+              componentInputParameter: exp
+            mlflow_kfp_run_id:
+              runtimeValue:
+                constant: '{{$.pipeline_job_uuid}}'
+            mlflow_run_id:
+              runtimeValue:
+                constant: ''
+            mlflow_uri:
+              componentInputParameter: uri
+            model_dropout_rate:
+              runtimeValue:
+                constant: 0.2
+            model_embedding_factors:
+              componentInputParameter: factors
+            model_hidden_dims:
+              componentInputParameter: hidden
+            model_learning_rate:
+              componentInputParameter: lr
+            model_optimizer:
+              componentInputParameter: opt
+            optimizer_gamma:
+              runtimeValue:
+                constant: 0.1
+            optimizer_step_size:
+              runtimeValue:
+                constant: 10.0
+            shuffle_training_data:
+              runtimeValue:
+                constant: true
+            test_batch_size:
+              runtimeValue:
+                constant: 65536.0
+            train_batch_size:
+              componentInputParameter: batch
+            training_data_metadata:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: get-dataset-metadata
+            training_epochs:
+              componentInputParameter: epochs
+        taskInfo:
+          name: train-model
+      validate-model:
+        cachingOptions: {}
+        componentRef:
+          name: comp-validate-model
+        dependentTasks:
+        - get-test-valid-dataset
+        - train-model
+        inputs:
+          artifacts:
+            validation_dataset:
+              taskOutputArtifact:
+                outputArtifactKey: validation_dataset
+                producerTask: get-test-valid-dataset
+          parameters:
+            mlflow_uri:
+              componentInputParameter: uri
+            model_run_id:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: train-model
+            threshold:
+              componentInputParameter: threshold
+            top_k:
+              componentInputParameter: top_k
+            val_batch_size:
+              runtimeValue:
+                constant: 65536.0
+        taskInfo:
+          name: validate-model
+  inputDefinitions:
+    parameters:
+      batch:
+        defaultValue: 32768.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      bucket:
+        defaultValue: mlpipeline
+        isOptional: true
+        parameterType: STRING
+      dataset:
+        defaultValue: private-artifacts/kubeflow-user-example-com/datasets/goodbooks-10k
+        isOptional: true
+        parameterType: STRING
+      epochs:
+        defaultValue: 30.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      exp:
+        defaultValue: recommender
+        isOptional: true
+        parameterType: STRING
+      factors:
+        defaultValue: 20.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      hidden:
+        defaultValue: 256.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      hot:
+        defaultValue: none
+        isOptional: true
+        parameterType: STRING
+      lr:
+        defaultValue: 0.001
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+      neg:
+        defaultValue: 10.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      opt:
+        defaultValue: SGD
+        isOptional: true
+        parameterType: STRING
+      prec_th:
+        defaultValue: -0.3
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+      rec_th:
+        defaultValue: -0.2
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+      registered:
+        defaultValue: recommender_production
+        isOptional: true
+        parameterType: STRING
+      rmse_th:
+        defaultValue: 0.0001
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+      threshold:
+        defaultValue: 3.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      top_k:
+        defaultValue: 50.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      uri:
+        defaultValue: http://mlflow.mlops.svc.cluster.local:5000
+        isOptional: true
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.16.1
+---
+platforms:
+  kubernetes:
+    deploymentSpec:
+      executors:
+        exec-get-dataset-metadata:
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: AWS_ACCESS_KEY_ID
+              secretKey: accesskey
+            - envVar: AWS_SECRET_ACCESS_KEY
+              secretKey: secretkey
+            optional: false
+            secretName: mlpipeline-minio-artifact
+            secretNameParameter:
+              runtimeValue:
+                constant: mlpipeline-minio-artifact
+        exec-get-test-valid-dataset:
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: AWS_ACCESS_KEY_ID
+              secretKey: accesskey
+            - envVar: AWS_SECRET_ACCESS_KEY
+              secretKey: secretkey
+            optional: false
+            secretName: mlpipeline-minio-artifact
+            secretNameParameter:
+              runtimeValue:
+                constant: mlpipeline-minio-artifact
+        exec-negative-sampling:
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: AWS_ACCESS_KEY_ID
+              secretKey: accesskey
+            - envVar: AWS_SECRET_ACCESS_KEY
+              secretKey: secretkey
+            optional: false
+            secretName: mlpipeline-minio-artifact
+            secretNameParameter:
+              runtimeValue:
+                constant: mlpipeline-minio-artifact
+        exec-qa-data:
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: AWS_ACCESS_KEY_ID
+              secretKey: accesskey
+            - envVar: AWS_SECRET_ACCESS_KEY
+              secretKey: secretkey
+            optional: false
+            secretName: mlpipeline-minio-artifact
+            secretNameParameter:
+              runtimeValue:
+                constant: mlpipeline-minio-artifact
