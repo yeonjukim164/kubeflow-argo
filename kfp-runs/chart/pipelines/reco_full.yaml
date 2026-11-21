@@ -191,14 +191,6 @@ deploymentSpec:
         - get_dataset_metadata
         command:
         - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
-          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
-          3.9\"' && \"$0\" \"$@\"\n"
-        - sh
         - -ec
         - 'program_path=$(mktemp -d)
 
@@ -222,7 +214,7 @@ deploymentSpec:
         env:
         - name: AWS_DEFAULT_REGION
           value: us-east-1
-        image: python:3.11-slim
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
         resources:
           memoryLimit: 2.0
           memoryRequest: 1.0
@@ -236,14 +228,6 @@ deploymentSpec:
         - --function_to_execute
         - get_test_valid_dataset
         command:
-        - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
-          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
-          3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -269,7 +253,7 @@ deploymentSpec:
         env:
         - name: AWS_DEFAULT_REGION
           value: us-east-1
-        image: python:3.11-slim
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
         resources:
           memoryLimit: 2.0
           memoryRequest: 1.0
@@ -283,14 +267,6 @@ deploymentSpec:
         - --function_to_execute
         - negative_sampling
         command:
-        - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
-          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
-          3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -336,7 +312,7 @@ deploymentSpec:
         env:
         - name: AWS_DEFAULT_REGION
           value: us-east-1
-        image: python:3.11-slim
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
         resources:
           memoryLimit: 2.0
           memoryRequest: 1.0
@@ -350,14 +326,6 @@ deploymentSpec:
         - --function_to_execute
         - promote_model_to_staging
         command:
-        - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'mlflow==3.17.2'\
-          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -403,7 +371,7 @@ deploymentSpec:
           \ \"staging\", result.version)\n    print(f\"[ch09] PROMOTE: {registered_model_name}\
           \ v{result.version} is now staging\", flush=True)\n    return f\"PROMOTE:\
           \ v{result.version} is now staging\"\n\n"
-        image: python:3.11-slim
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
     exec-qa-data:
       container:
         args:
@@ -412,14 +380,6 @@ deploymentSpec:
         - --function_to_execute
         - qa_data
         command:
-        - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.3.3'\
-          \ 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
-          3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -451,7 +411,7 @@ deploymentSpec:
         env:
         - name: AWS_DEFAULT_REGION
           value: us-east-1
-        image: python:3.11-slim
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
         resources:
           memoryLimit: 2.0
           memoryRequest: 1.0
@@ -465,18 +425,6 @@ deploymentSpec:
         - --function_to_execute
         - train_model
         command:
-        - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
-          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
-          \ --trusted-host https://pypi.org/simple 'torch==2.15.0' 'mlflow==3.17.2'\
-          \ 'pandas==2.3.3' 'pyarrow==25.0.1' 'torchinfo==1.8.0'  &&  python3 -m pip\
-          \ install --quiet --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
-          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
-          \ --trusted-host https://pypi.org/simple 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
-          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -571,20 +519,26 @@ deploymentSpec:
           , te_loss / te_count, step=epoch)\n            mlflow.log_metric(\"epoch_seconds\"\
           , time.time() - t0, step=epoch)\n            print(f\"[ch09] epoch {epoch}\
           \ train loss {t_loss / t_count:.4f} test loss {te_loss / te_count:.4f} \"\
-          \n                  f\"{time.time() - t0:.1f}s\", flush=True)\n        mlflow.pytorch.log_model(model,\
-          \ name=\"model\", signature=model_signature)\n        print(\"[ch09] mlflow\
-          \ run:\", run.info.run_id, flush=True)\n        return run.info.run_id\n\
+          \n                  f\"{time.time() - t0:.1f}s\", flush=True)\n        #\
+          \ MLflow 3.17 \uC758 \uAE30\uBCF8 \uC800\uC7A5 \uD615\uC2DD(pt2)\uC740 \uCD94\
+          \uC801\uD55C \uADF8\uB798\uD504\uB9CC \uB2F4\uB294\uB2E4. \uC774\uC5B4\uC11C\
+          \ \uD559\uC2B5\uD558\uACE0 n_items \uAC19\uC740 \uC18D\uC131\uC744 \uC77D\
+          \uC73C\uB824\uBA74\n        # \uBAA8\uB4C8 \uAC1D\uCCB4\uAC00 \uADF8\uB300\
+          \uB85C \uD544\uC694\uD558\uBBC0\uB85C pickle \uD615\uC2DD\uC73C\uB85C \uC800\
+          \uC7A5\uD55C\uB2E4.\n        mlflow.pytorch.log_model(model, name=\"model\"\
+          , signature=model_signature, serialization_format=\"pickle\")\n        print(\"\
+          [ch09] mlflow run:\", run.info.run_id, flush=True)\n        return run.info.run_id\n\
           \n"
-        image: python:3.11-slim
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
         resources:
           cpuLimit: 2.0
           cpuRequest: 1.0
           memoryLimit: 3.0
-          memoryRequest: 1.0
+          memoryRequest: 2.0
           resourceCpuLimit: '2'
           resourceCpuRequest: '1'
           resourceMemoryLimit: 3G
-          resourceMemoryRequest: 1G
+          resourceMemoryRequest: 2G
     exec-validate-model:
       container:
         args:
@@ -593,18 +547,6 @@ deploymentSpec:
         - --function_to_execute
         - validate_model
         command:
-        - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
-          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
-          \ --trusted-host https://pypi.org/simple 'torch==2.15.0' 'mlflow==3.17.2'\
-          \ 'pandas==2.3.3' 'pyarrow==25.0.1'  &&  python3 -m pip install --quiet\
-          \ --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu\
-          \ --extra-index-url https://pypi.org/simple --trusted-host https://download.pytorch.org/whl/cpu\
-          \ --trusted-host https://pypi.org/simple 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
-          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -647,12 +589,12 @@ deploymentSpec:
           \ \uC5D0 \uC9C0\uD45C\uB97C \uB354\uD55C\uB2E4\n        metrics.log_metric(k,\
           \ round(v, 4))\n    print(f\"[ch09] validation rows {len(df)} users {len(g)}:\"\
           , {k: round(v, 4) for k, v in vals.items()}, flush=True)\n\n"
-        image: python:3.11-slim
+        image: ghcr.io/yeonjukim164/ch9-reco-train:203afca
         resources:
           memoryLimit: 3.0
-          memoryRequest: 1.0
+          memoryRequest: 2.0
           resourceMemoryLimit: 3G
-          resourceMemoryRequest: 1G
+          resourceMemoryRequest: 2G
 pipelineInfo:
   name: reco-full
 root:
@@ -921,6 +863,11 @@ platforms:
     deploymentSpec:
       executors:
         exec-get-dataset-metadata:
+          imagePullSecret:
+          - secretName: ghcr-pull
+            secretNameParameter:
+              runtimeValue:
+                constant: ghcr-pull
           secretAsEnv:
           - keyToEnv:
             - envVar: AWS_ACCESS_KEY_ID
@@ -933,6 +880,11 @@ platforms:
               runtimeValue:
                 constant: mlpipeline-minio-artifact
         exec-get-test-valid-dataset:
+          imagePullSecret:
+          - secretName: ghcr-pull
+            secretNameParameter:
+              runtimeValue:
+                constant: ghcr-pull
           secretAsEnv:
           - keyToEnv:
             - envVar: AWS_ACCESS_KEY_ID
@@ -945,6 +897,11 @@ platforms:
               runtimeValue:
                 constant: mlpipeline-minio-artifact
         exec-negative-sampling:
+          imagePullSecret:
+          - secretName: ghcr-pull
+            secretNameParameter:
+              runtimeValue:
+                constant: ghcr-pull
           secretAsEnv:
           - keyToEnv:
             - envVar: AWS_ACCESS_KEY_ID
@@ -956,7 +913,18 @@ platforms:
             secretNameParameter:
               runtimeValue:
                 constant: mlpipeline-minio-artifact
+        exec-promote-model-to-staging:
+          imagePullSecret:
+          - secretName: ghcr-pull
+            secretNameParameter:
+              runtimeValue:
+                constant: ghcr-pull
         exec-qa-data:
+          imagePullSecret:
+          - secretName: ghcr-pull
+            secretNameParameter:
+              runtimeValue:
+                constant: ghcr-pull
           secretAsEnv:
           - keyToEnv:
             - envVar: AWS_ACCESS_KEY_ID
@@ -968,3 +936,15 @@ platforms:
             secretNameParameter:
               runtimeValue:
                 constant: mlpipeline-minio-artifact
+        exec-train-model:
+          imagePullSecret:
+          - secretName: ghcr-pull
+            secretNameParameter:
+              runtimeValue:
+                constant: ghcr-pull
+        exec-validate-model:
+          imagePullSecret:
+          - secretName: ghcr-pull
+            secretNameParameter:
+              runtimeValue:
+                constant: ghcr-pull
