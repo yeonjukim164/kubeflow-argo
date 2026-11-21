@@ -10,7 +10,8 @@ NS = os.environ["NAMESPACE"]
 name, rev = os.environ["RUN_NAME"], os.environ.get("GIT_REVISION", "")
 spec = yaml.safe_load(open("/spec/run.yaml"))
 # 파드의 서비스 어카운트 토큰(대상 pipelines.kubeflow.org)으로 인증한다. 비밀번호를 쓰지 않는다.
-c = kfp.Client(host="http://ml-pipeline.kubeflow.svc.cluster.local:8888", namespace=NS)
+c = kfp.Client(host="http://ml-pipeline.kubeflow.svc.cluster.local:8888", namespace=NS,
+               credentials=kfp.client.ServiceAccountTokenVolumeCredentials())
 exp = c.create_experiment(spec["experiment"], namespace=NS)
 flt = json.dumps({"predicates": [{"key": "display_name", "operation": "EQUALS", "string_value": name}]})
 found = c.list_runs(experiment_id=exp.experiment_id, namespace=NS, filter=flt).runs

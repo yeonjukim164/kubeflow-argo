@@ -6,8 +6,8 @@
 #    dataset: str [Default: 'private-artifacts/kubeflow-user-example-com/datasets/goodbooks-10k']
 #    epochs: int [Default: 30.0]
 #    exp: str [Default: 'recommender']
-#    factors: int [Default: 20.0]
-#    hidden: int [Default: 256.0]
+#    factors: int [Default: 5.0]
+#    hidden: int [Default: 64.0]
 #    hot: str [Default: 'none']
 #    lr: float [Default: 0.001]
 #    neg: int [Default: 10.0]
@@ -862,11 +862,11 @@ root:
         isOptional: true
         parameterType: STRING
       factors:
-        defaultValue: 20.0
+        defaultValue: 5.0
         isOptional: true
         parameterType: NUMBER_INTEGER
       hidden:
-        defaultValue: 256.0
+        defaultValue: 64.0
         isOptional: true
         parameterType: NUMBER_INTEGER
       hot:
