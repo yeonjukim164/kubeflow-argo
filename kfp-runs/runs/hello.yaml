@@ -1,4 +1,4 @@
-# 이 파일을 커밋하면 Argo CD 가 KFP 실행을 만든다. 파라미터를 고쳐서 커밋하면 새 실행이 된다.
+# 이 파일을 커밋하면 Argo CD 가 KFP 실행을 만든다. 파라미터를 고쳐서 커밋하면 새 실행이 된다(주석만 고치면 실행되지 않는다).
 pipeline: hello.yaml
 experiment: ch09-gitops
 parameters: {msg: first}
