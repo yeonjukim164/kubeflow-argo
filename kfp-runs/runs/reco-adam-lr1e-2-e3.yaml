@@ -1,0 +1,5 @@
+# 이 파일을 커밋하면 Argo CD 가 KFP 실행을 만든다. 파라미터를 고쳐서 커밋하면 새 실행이 된다.
+pipeline: reco_full.yaml
+experiment: ch09-gitops
+cache: true          # 입력이 같은 데이터 단계는 앞 실행의 결과를 다시 쓴다
+parameters: {epochs: 3, lr: 0.01, opt: Adam}
