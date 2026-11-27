@@ -64,14 +64,16 @@ spec:
           # 홈랩에서는 Grafana 가 뜨는 데 3분 넘게 걸려서, 기본 liveness(60초 뒤부터 확인)에 걸려 계속 재시작했다.
           livenessProbe:
             httpGet: {path: /api/health, port: 3000}
-            initialDelaySeconds: 600
+            initialDelaySeconds: 1500
             timeoutSeconds: 30
             failureThreshold: 10
           env:
             GF_PLUGINS_PREINSTALL_DISABLED: "true"   # 시작할 때 플러그인을 내려받아 설치하지 않는다
+            GOMAXPROCS: "2"                          # Go 런타임이 CPU 제한에 맞는 수의 스레드만 쓰게 한다
+          # CPU 제한이 없으면 Grafana 13 이 노드의 vCPU 28개를 다 쓰려고 해서(측정값 6~13코어) 다른 파드가 밀렸다.
           resources:
             requests: {cpu: 50m, memory: 256Mi}
-            limits: {memory: 512Mi}
+            limits: {cpu: "2", memory: 768Mi}
           additionalDataSources:
           - name: Loki
             type: loki
