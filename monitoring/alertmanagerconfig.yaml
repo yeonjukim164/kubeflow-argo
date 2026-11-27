@@ -13,7 +13,7 @@ spec:
     groupInterval: 5m
     repeatInterval: 3h
     matchers:
-    - {name: alertname, matchType: "=~", value: "ServiceDown|MissingUpMetric|LowDetectionConfidence"}
+    - {name: alertname, matchType: "=~", value: "ServiceDown|MissingUpMetric|NoDetectionRatioHigh"}
     routes:
     - receiver: critical-log
       matchers:

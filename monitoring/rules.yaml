@@ -21,10 +21,12 @@ spec:
       annotations:
         summary: "pets-yolov8n 의 up 지표 없음"
         description: "pets-yolov8n 타깃이 1분 넘게 보이지 않습니다. InferenceService 가 지워졌거나 파드가 0개입니다."
-    - alert: LowDetectionConfidence          # 커스텀 지표로 만든 알림: 신뢰도의 중앙값이 0.5 아래
-      expr: histogram_quantile(0.5, sum(rate(pet_confidence_score_bucket[5m])) by (le)) < 0.5
+    - alert: NoDetectionRatioHigh            # 커스텀 지표로 만든 알림: 최근 5분 동안 받은 사진의 절반 넘게 탐지가 없다
+      expr: |
+        sum(increase(pet_images_without_detection_total[5m]))
+          / sum(increase(request_predict_seconds_count{job="pets-yolov8n"}[5m])) > 0.5
       for: 1m
       labels: {severity: warning}
       annotations:
-        summary: "Pet 탐지 신뢰도의 중앙값이 0.5 아래"
-        description: "최근 5분 동안 탐지 신뢰도의 중앙값이 {{ $value | printf \"%.2f\" }} 입니다. 들어오는 사진이 학습 데이터와 달라졌는지 확인하세요."
+        summary: "Pet 탐지: 탐지가 없는 사진이 절반을 넘음"
+        description: "최근 5분 동안 받은 사진 가운데 {{ $value | humanizePercentage }} 에서 아무것도 찾지 못했습니다. 들어오는 사진이 학습 데이터와 달라졌는지 확인하세요."
