@@ -1,0 +1,18 @@
+# 모니터링 대상별 설정: 무엇을 수집하고(PodMonitor), 언제 알리고(PrometheusRule), 어디로 보내고(AlertmanagerConfig), 어떻게 보여 줄지(대시보드)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+- podmonitor.yaml
+- rules.yaml
+- alertmanagerconfig.yaml
+- alert-logger.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+- name: alert-logger-code
+  files: [alert-logger.py]
+- name: kserve-predictor-dashboard          # grafana_dashboard 라벨이 있는 ConfigMap 을 Grafana 의 사이드카가 읽어 들인다
+  files: [kserve-predictor-dashboard.json]
+  options:
+    labels: {grafana_dashboard: "1"}

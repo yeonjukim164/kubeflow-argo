@@ -48,6 +48,14 @@ spec:
         grafana:
           service: {type: NodePort, nodePort: 30300}
           admin: {existingSecret: grafana-admin, userKey: admin-user, passwordKey: admin-password}
+          # 홈랩에서는 Grafana 가 뜨는 데 3분 넘게 걸려서, 기본 liveness(60초 뒤부터 확인)에 걸려 계속 재시작했다.
+          livenessProbe:
+            httpGet: {path: /api/health, port: 3000}
+            initialDelaySeconds: 600
+            timeoutSeconds: 30
+            failureThreshold: 10
+          env:
+            GF_PLUGINS_PREINSTALL_DISABLED: "true"   # 시작할 때 플러그인을 내려받아 설치하지 않는다
           resources:
             requests: {cpu: 50m, memory: 256Mi}
             limits: {memory: 512Mi}
@@ -144,7 +152,7 @@ spec:
           mounts: {varlog: true}
           resources:
             requests: {cpu: 20m, memory: 96Mi}
-            limits: {memory: 256Mi}
+            limits: {cpu: 500m, memory: 256Mi}     # 로그 수집이 노드의 CPU 를 다 쓰지 못하게 막는다
           configMap:
             content: |
               // 이 노드에 있는 파드만 찾는다
@@ -188,9 +196,12 @@ spec:
               local.file_match "pods" {
                 path_targets = discovery.relabel.pods.output
               }
+              // tail_from_end: 설치하기 전에 쌓인 로그는 읽지 않고 새로 쌓이는 줄만 보낸다.
+              // 처음부터 읽게 두었더니 25일 치 로그를 한꺼번에 처리하느라 노드마다 CPU 를 13~15코어 썼다.
               loki.source.file "pods" {
-                targets    = local.file_match.pods.targets
-                forward_to = [loki.process.cri.receiver]
+                targets       = local.file_match.pods.targets
+                forward_to    = [loki.process.cri.receiver]
+                tail_from_end = true
               }
               // containerd 가 줄 앞에 붙인 시각과 스트림 이름을 떼어 낸다
               loki.process "cri" {
@@ -208,4 +219,25 @@ spec:
   syncPolicy:
     automated: {prune: true, selfHeal: true}
     syncOptions: [CreateNamespace=true]
+    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
+---
+# 모니터링 대상별 설정(monitoring/ 디렉터리): PodMonitor, 알림 규칙, 알림 라우팅, 대시보드
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-config
+  namespace: argocd
+  labels: {app.kubernetes.io/part-of: monitoring}
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/yeonjukim164/kubeflow-argo.git
+    targetRevision: main
+    path: monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true, SkipDryRunOnMissingResource=true]
     retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}

@@ -1,0 +1,30 @@
+# 알림 규칙. 시험 시간을 줄이려고 for 를 1분으로 두었다(기존 환경의 예시는 5분).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kserve-predictors
+spec:
+  groups:
+  - name: kserve-predictors
+    rules:
+    - alert: ServiceDown                     # 파드는 있는데 /metrics 를 읽지 못한다
+      expr: up{job=~"pets-yolov8n|reco-kserve"} == 0
+      for: 1m
+      labels: {severity: critical}
+      annotations:
+        summary: "{{ $labels.job }} 다운 ({{ $labels.pod }})"
+        description: "{{ $labels.job }} 의 /metrics 를 1분 넘게 읽지 못했습니다."
+    - alert: MissingUpMetric                 # 파드가 아예 없어서 up 지표 자체가 사라졌다
+      expr: absent(up{job="pets-yolov8n"})
+      for: 1m
+      labels: {severity: critical}
+      annotations:
+        summary: "pets-yolov8n 의 up 지표 없음"
+        description: "pets-yolov8n 타깃이 1분 넘게 보이지 않습니다. InferenceService 가 지워졌거나 파드가 0개입니다."
+    - alert: LowDetectionConfidence          # 커스텀 지표로 만든 알림: 신뢰도의 중앙값이 0.5 아래
+      expr: histogram_quantile(0.5, sum(rate(pet_confidence_score_bucket[5m])) by (le)) < 0.5
+      for: 1m
+      labels: {severity: warning}
+      annotations:
+        summary: "Pet 탐지 신뢰도의 중앙값이 0.5 아래"
+        description: "최근 5분 동안 탐지 신뢰도의 중앙값이 {{ $value | printf \"%.2f\" }} 입니다. 들어오는 사진이 학습 데이터와 달라졌는지 확인하세요."

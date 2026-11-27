@@ -1,0 +1,18 @@
+# KServe Predictor 파드의 /metrics 를 Prometheus 가 15초마다 읽게 한다.
+# KServe 가 파드에 붙이는 라벨(serving.kserve.io/inferenceservice)의 값을 job 라벨로 쓴다. 예: up{job="pets-yolov8n"}
+# 직접 만든 Predictor 컨테이너에는 포트 이름이 없어서 포트 번호(8080)로 적는다.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kserve-predictors
+spec:
+  jobLabel: serving.kserve.io/inferenceservice
+  namespaceSelector:
+    matchNames: [kubeflow-user-example-com]
+  selector:
+    matchExpressions:
+    - {key: serving.kserve.io/inferenceservice, operator: In, values: [pets-yolov8n, reco-kserve, reco-kserve-staging]}
+  podMetricsEndpoints:
+  - portNumber: 8080
+    path: /metrics
+    interval: 15s
