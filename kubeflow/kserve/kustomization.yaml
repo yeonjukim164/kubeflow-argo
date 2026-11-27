@@ -19,3 +19,19 @@ patches:
         {
           "defaultDeploymentMode": "Standard"
         }
+# 컨트롤러의 CPU 제한이 100m 이면 호스트가 바쁠 때 80초 안에 뜨지 못해 liveness 에 걸려 재시작을 반복했다(5일에 195번).
+# 그동안 웹훅도 응답하지 않아 InferenceService 를 만들거나 고칠 수 없었다.
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kserve-controller-manager
+      namespace: kubeflow
+    spec:
+      template:
+        spec:
+          containers:
+          - name: manager
+            resources:
+              limits: {cpu: "1", memory: 300Mi}
+              requests: {cpu: 100m, memory: 200Mi}
