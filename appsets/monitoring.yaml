@@ -173,6 +173,10 @@ spec:
               // 이 노드에 있는 파드만 찾는다
               discovery.kubernetes "pods" {
                 role = "pod"
+                // 로그를 조회할 네임스페이스만 읽는다. 전체(파드 250여 개)를 읽을 때는 노드마다 CPU 제한 500m 를 다 썼다.
+                namespaces {
+                  names = ["kubeflow-user-example-com", "monitoring", "mlops"]
+                }
                 selectors {
                   role  = "pod"
                   field = "spec.nodeName=" + coalesce(sys.env("HOSTNAME"), constants.hostname)
@@ -243,6 +247,7 @@ metadata:
   name: monitoring-config
   namespace: argocd
   labels: {app.kubernetes.io/part-of: monitoring}
+  annotations: {argocd.argoproj.io/manifest-generate-paths: .}
 spec:
   project: default
   source:
