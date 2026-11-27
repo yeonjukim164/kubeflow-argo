@@ -11,7 +11,7 @@ spec:
     matchNames: [kubeflow-user-example-com]
   selector:
     matchExpressions:
-    - {key: serving.kserve.io/inferenceservice, operator: In, values: [pets-yolov8n, reco-kserve, reco-kserve-staging]}
+    - {key: serving.kserve.io/inferenceservice, operator: In, values: [pets-yolov8n, reco-kserve]}
   podMetricsEndpoints:
   - portNumber: 8080
     path: /metrics
