@@ -14,7 +14,17 @@ spec:
     targetRevision: 94.1.0
     helm:
       releaseName: kps
+      # CRD 10개는 처음 설치할 때 만들어졌다. 하나가 수백 KB 라서 Argo CD 가 상태를 확인하다 시간 초과가 났고,
+      # 같은 동기화를 계속 다시 시도했다. 그래서 CRD 는 Argo CD 가 관리하지 않게 뺐다(차트를 올릴 때는 CRD 를 따로 적용한다).
+      skipCrds: true
       valuesObject:
+        # 홈랩은 호스트 CPU 가 빠듯해서 기본 구성을 줄였다: 기본 알림 규칙과 기본 대시보드를 끄고,
+        # kube-apiserver 와 CoreDNS 는 수집하지 않고, 수집 주기를 60초로 늘린다.
+        defaultRules: {create: false}
+        kubeApiServer: {enabled: false}
+        coreDns: {enabled: false}
+        kubelet:
+          serviceMonitor: {interval: 60s, probes: false, resource: false}
         # kubeadm 은 이 셋을 127.0.0.1 에만 열어 두어서 수집할 수 없다. 켜 두면 Down 알림만 계속 뜬다.
         kubeControllerManager: {enabled: false}
         kubeScheduler: {enabled: false}
@@ -28,6 +38,8 @@ spec:
             serviceMonitorSelectorNilUsesHelmValues: false
             ruleSelectorNilUsesHelmValues: false
             retention: 3d
+            scrapeInterval: 60s
+            evaluationInterval: 30s
             resources:
               requests: {cpu: 200m, memory: 768Mi}
               limits: {memory: 2Gi}
@@ -47,6 +59,7 @@ spec:
               limits: {memory: 256Mi}
         grafana:
           service: {type: NodePort, nodePort: 30300}
+          defaultDashboardsEnabled: false
           admin: {existingSecret: grafana-admin, userKey: admin-user, passwordKey: admin-password}
           # 홈랩에서는 Grafana 가 뜨는 데 3분 넘게 걸려서, 기본 liveness(60초 뒤부터 확인)에 걸려 계속 재시작했다.
           livenessProbe:
