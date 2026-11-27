@@ -1,0 +1,211 @@
+# 모니터링 스택 (namespace: monitoring). Helm 차트 3개와, 대상별 설정(PodMonitor, 알림 규칙, 대시보드)을 둔 monitoring/ 디렉터리.
+# Grafana 관리자 비밀번호 Secret 은 저장소에 두지 않음 → bootstrap/create-monitoring-secrets.sh 로 먼저 생성
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  labels: {app.kubernetes.io/part-of: monitoring}
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 94.1.0
+    helm:
+      releaseName: kps
+      valuesObject:
+        # kubeadm 은 이 셋을 127.0.0.1 에만 열어 두어서 수집할 수 없다. 켜 두면 Down 알림만 계속 뜬다.
+        kubeControllerManager: {enabled: false}
+        kubeScheduler: {enabled: false}
+        kubeEtcd: {enabled: false}
+        kubeProxy: {enabled: false}
+        prometheus:
+          service: {type: NodePort, nodePort: 30090}
+          prometheusSpec:
+            # release 라벨이 없는 PodMonitor, ServiceMonitor, PrometheusRule 도 모든 네임스페이스에서 읽는다
+            podMonitorSelectorNilUsesHelmValues: false
+            serviceMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            retention: 3d
+            resources:
+              requests: {cpu: 200m, memory: 768Mi}
+              limits: {memory: 2Gi}
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: local-path
+                  accessModes: [ReadWriteOnce]
+                  resources: {requests: {storage: 5Gi}}
+        alertmanager:
+          service: {type: NodePort, nodePort: 30093}
+          alertmanagerSpec:
+            # AlertmanagerConfig 의 라우팅을 그 리소스가 있는 네임스페이스의 알림으로 좁히지 않는다
+            alertmanagerConfigMatcherStrategy: {type: None}
+            resources:
+              requests: {cpu: 20m, memory: 64Mi}
+              limits: {memory: 256Mi}
+        grafana:
+          service: {type: NodePort, nodePort: 30300}
+          admin: {existingSecret: grafana-admin, userKey: admin-user, passwordKey: admin-password}
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          additionalDataSources:
+          - name: Loki
+            type: loki
+            uid: loki
+            access: proxy
+            url: http://loki.monitoring.svc.cluster.local:3100
+          sidecar:
+            dashboards: {searchNamespace: monitoring}
+        prometheusOperator:
+          resources:
+            requests: {cpu: 20m, memory: 128Mi}
+            limits: {memory: 256Mi}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  labels: {app.kubernetes.io/part-of: monitoring}
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 7.7.0
+    helm:
+      releaseName: loki
+      valuesObject:
+        # 파드 하나에 모든 역할을 넣고 로그를 노드의 디스크(PVC)에 둔다. 홈랩 규모에 맞춘 가장 작은 구성.
+        deploymentMode: SingleBinary
+        loki:
+          auth_enabled: false
+          commonConfig: {replication_factor: 1}
+          storage: {type: filesystem}
+          schemaConfig:
+            configs:
+            - {from: "2026-11-01", store: tsdb, object_store: filesystem, schema: v13, index: {prefix: loki_index_, period: 24h}}
+          limits_config: {retention_period: 72h}
+          compactor: {retention_enabled: true, delete_request_store: filesystem}
+        singleBinary:
+          replicas: 1
+          persistence: {size: 5Gi, storageClass: local-path}
+          resources:
+            requests: {cpu: 100m, memory: 384Mi}
+            limits: {memory: 1Gi}
+        write: {replicas: 0}
+        read: {replicas: 0}
+        backend: {replicas: 0}
+        gateway: {enabled: false}
+        chunksCache: {enabled: false}
+        resultsCache: {enabled: false}
+        lokiCanary: {enabled: false}
+        test: {enabled: false}
+        minio: {enabled: false}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alloy
+  namespace: argocd
+  labels: {app.kubernetes.io/part-of: monitoring}
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: alloy
+    targetRevision: 1.16.0
+    helm:
+      releaseName: alloy
+      valuesObject:
+        # Loki 는 로그를 저장하고 조회만 한다. 노드마다 Alloy 를 띄워 /var/log/pods 의 파일을 읽어 Loki 로 보낸다.
+        controller:
+          type: daemonset
+          tolerations:
+          - {key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule}
+        alloy:
+          mounts: {varlog: true}
+          resources:
+            requests: {cpu: 20m, memory: 96Mi}
+            limits: {memory: 256Mi}
+          configMap:
+            content: |
+              // 이 노드에 있는 파드만 찾는다
+              discovery.kubernetes "pods" {
+                role = "pod"
+                selectors {
+                  role  = "pod"
+                  field = "spec.nodeName=" + coalesce(sys.env("HOSTNAME"), constants.hostname)
+                }
+              }
+              // 파드의 메타데이터를 로그 라벨로 바꾸고, 읽을 로그 파일의 경로를 만든다
+              discovery.relabel "pods" {
+                targets = discovery.kubernetes.pods.targets
+                rule {
+                  source_labels = ["__meta_kubernetes_namespace"]
+                  target_label  = "namespace"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_name"]
+                  target_label  = "pod"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_container_name"]
+                  target_label  = "container"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_label_app"]
+                  target_label  = "app"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_node_name"]
+                  target_label  = "node"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+                  separator     = "/"
+                  target_label  = "__path__"
+                  replacement   = "/var/log/pods/*$1/*.log"
+                }
+              }
+              local.file_match "pods" {
+                path_targets = discovery.relabel.pods.output
+              }
+              loki.source.file "pods" {
+                targets    = local.file_match.pods.targets
+                forward_to = [loki.process.cri.receiver]
+              }
+              // containerd 가 줄 앞에 붙인 시각과 스트림 이름을 떼어 낸다
+              loki.process "cri" {
+                stage.cri {}
+                forward_to = [loki.write.loki.receiver]
+              }
+              loki.write "loki" {
+                endpoint {
+                  url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+                }
+              }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
