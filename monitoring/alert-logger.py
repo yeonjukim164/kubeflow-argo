@@ -10,8 +10,11 @@ class H(BaseHTTPRequestHandler):
                               "severity": a["labels"].get("severity"), "job": a["labels"].get("job"),
                               "summary": a.get("annotations", {}).get("summary"), "startsAt": a.get("startsAt")}, ensure_ascii=False), flush=True)
         self.send_response(200); self.end_headers()
-    def do_GET(self):
-        self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+    def do_GET(self):                       # readinessProbe 용. kubelet 이 응답을 다 읽기 전에 끊어도 오류를 남기지 않는다
+        try:
+            self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+        except BrokenPipeError:
+            pass
     def log_message(self, *a): pass
 
 print("alert-logger listening on 8080", flush=True)
