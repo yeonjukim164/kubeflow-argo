@@ -1,27 +1,35 @@
-# 알림 라우팅. severity 가 critical 인 알림과 나머지를 다른 수신자로 보낸다.
-# 두 수신자 모두 alert-logger 이고 경로만 다르다. 어느 경로로 왔는지가 로그의 receiver 에 남는다.
+# 알림 라우팅. severity 가 critical 인 알림과 나머지를 다른 수신자로 보냄.
+# 두 수신자 모두 alert-logger 이고 경로만 다름. 어느 경로로 왔는지가 로그의 receiver 에 남음.
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
   name: kserve-predictors
-  labels: {alertmanagerConfig: kserve-predictors}
+  labels:
+    alertmanagerConfig: kserve-predictors
 spec:
   route:
     receiver: default-log
-    groupBy: [alertname, job]
+    groupBy:
+    - alertname
+    - job
     groupWait: 30s
     groupInterval: 5m
     repeatInterval: 3h
     matchers:
-    - {name: alertname, matchType: "=~", value: "ServiceDown|MissingUpMetric|NoDetectionRatioHigh"}
+    - name: alertname
+      matchType: "=~"
+      value: "ServiceDown|MissingUpMetric|NoDetectionRatioHigh"
     routes:
     - receiver: critical-log
       matchers:
-      - {name: severity, value: critical}
+      - name: severity
+        value: critical
   receivers:
   - name: default-log
     webhookConfigs:
-    - {url: "http://alert-logger.monitoring.svc.cluster.local:8080/default", sendResolved: true}
+    - url: "http://alert-logger.monitoring.svc.cluster.local:8080/default"
+      sendResolved: true
   - name: critical-log
     webhookConfigs:
-    - {url: "http://alert-logger.monitoring.svc.cluster.local:8080/critical", sendResolved: true}
+    - url: "http://alert-logger.monitoring.svc.cluster.local:8080/critical"
+      sendResolved: true

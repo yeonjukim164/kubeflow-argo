@@ -5,7 +5,8 @@ kind: Application
 metadata:
   name: kube-prometheus-stack
   namespace: argocd
-  labels: {app.kubernetes.io/part-of: monitoring}
+  labels:
+    app.kubernetes.io/part-of: monitoring
 spec:
   project: default
   source:
@@ -20,18 +21,30 @@ spec:
       valuesObject:
         # 홈랩은 호스트 CPU 가 빠듯해서 기본 구성을 줄였음: 기본 알림 규칙과 기본 대시보드를 끄고,
         # kube-apiserver 와 CoreDNS 는 수집하지 않고, 수집 주기를 60초로 늘림.
-        defaultRules: {create: false}
-        kubeApiServer: {enabled: false}
-        coreDns: {enabled: false}
+        defaultRules:
+          create: false
+        kubeApiServer:
+          enabled: false
+        coreDns:
+          enabled: false
         kubelet:
-          serviceMonitor: {interval: 60s, probes: false, resource: false}
+          serviceMonitor:
+            interval: 60s
+            probes: false
+            resource: false
         # kubeadm 은 이 넷을 127.0.0.1 에만 열어 두어서 수집할 수 없음. 켜 두면 Down 알림만 계속 뜸.
-        kubeControllerManager: {enabled: false}
-        kubeScheduler: {enabled: false}
-        kubeEtcd: {enabled: false}
-        kubeProxy: {enabled: false}
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        kubeProxy:
+          enabled: false
         prometheus:
-          service: {type: NodePort, nodePort: 30090}
+          service:
+            type: NodePort
+            nodePort: 30090
           prometheusSpec:
             # release 라벨이 없는 PodMonitor, ServiceMonitor, PrometheusRule 도 모든 네임스페이스에서 읽음
             podMonitorSelectorNilUsesHelmValues: false
@@ -41,29 +54,48 @@ spec:
             scrapeInterval: 60s
             evaluationInterval: 30s
             resources:
-              requests: {cpu: 200m, memory: 768Mi}
-              limits: {memory: 2Gi}
+              requests:
+                cpu: 200m
+                memory: 768Mi
+              limits:
+                memory: 2Gi
             storageSpec:
               volumeClaimTemplate:
                 spec:
                   storageClassName: local-path
-                  accessModes: [ReadWriteOnce]
-                  resources: {requests: {storage: 5Gi}}
+                  accessModes:
+                  - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
         alertmanager:
-          service: {type: NodePort, nodePort: 30093}
+          service:
+            type: NodePort
+            nodePort: 30093
           alertmanagerSpec:
             # AlertmanagerConfig 의 라우팅을 그 리소스가 있는 네임스페이스의 알림으로 좁히지 않음
-            alertmanagerConfigMatcherStrategy: {type: None}
+            alertmanagerConfigMatcherStrategy:
+              type: None
             resources:
-              requests: {cpu: 20m, memory: 64Mi}
-              limits: {memory: 256Mi}
+              requests:
+                cpu: 20m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
         grafana:
-          service: {type: NodePort, nodePort: 30300}
+          service:
+            type: NodePort
+            nodePort: 30300
           defaultDashboardsEnabled: false
-          admin: {existingSecret: grafana-admin, userKey: admin-user, passwordKey: admin-password}
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
           # 홈랩에서는 Grafana 가 뜨는 데 3분 넘게 걸려서, 기본 liveness(60초 뒤부터 확인)에 걸려 계속 재시작했음.
           livenessProbe:
-            httpGet: {path: /api/health, port: 3000}
+            httpGet:
+              path: /api/health
+              port: 3000
             initialDelaySeconds: 1500
             timeoutSeconds: 30
             failureThreshold: 10
@@ -72,8 +104,12 @@ spec:
             GOMAXPROCS: "2"                          # Go 런타임이 CPU 제한에 맞는 수의 스레드만 쓰게 함
           # CPU 제한이 없으면 Grafana 13 이 노드의 vCPU 28개를 다 쓰려고 해서(측정값 6~13코어) 다른 파드가 밀렸음.
           resources:
-            requests: {cpu: 50m, memory: 256Mi}
-            limits: {cpu: "2", memory: 768Mi}
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 768Mi
           additionalDataSources:
           - name: Loki
             type: loki
@@ -81,25 +117,39 @@ spec:
             access: proxy
             url: http://loki.monitoring.svc.cluster.local:3100
           sidecar:
-            dashboards: {searchNamespace: monitoring}
+            dashboards:
+              searchNamespace: monitoring
         prometheusOperator:
           resources:
-            requests: {cpu: 20m, memory: 128Mi}
-            limits: {memory: 256Mi}
+            requests:
+              cpu: 20m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
-    automated: {prune: true, selfHeal: true}
-    syncOptions: [CreateNamespace=true, ServerSideApply=true]
-    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: loki
   namespace: argocd
-  labels: {app.kubernetes.io/part-of: monitoring}
+  labels:
+    app.kubernetes.io/part-of: monitoring
 spec:
   project: default
   source:
@@ -113,42 +163,77 @@ spec:
         deploymentMode: SingleBinary
         loki:
           auth_enabled: false
-          commonConfig: {replication_factor: 1}
-          storage: {type: filesystem}
+          commonConfig:
+            replication_factor: 1
+          storage:
+            type: filesystem
           schemaConfig:
             configs:
-            - {from: "2026-11-01", store: tsdb, object_store: filesystem, schema: v13, index: {prefix: loki_index_, period: 24h}}
-          limits_config: {retention_period: 72h}
-          compactor: {retention_enabled: true, delete_request_store: filesystem}
+            - from: "2026-11-01"
+              store: tsdb
+              object_store: filesystem
+              schema: v13
+              index:
+                prefix: loki_index_
+                period: 24h
+          limits_config:
+            retention_period: 72h
+          compactor:
+            retention_enabled: true
+            delete_request_store: filesystem
         singleBinary:
           replicas: 1
-          persistence: {size: 5Gi, storageClass: local-path}
+          persistence:
+            size: 5Gi
+            storageClass: local-path
           resources:
-            requests: {cpu: 100m, memory: 384Mi}
-            limits: {memory: 1Gi}
-        write: {replicas: 0}
-        read: {replicas: 0}
-        backend: {replicas: 0}
-        gateway: {enabled: false}
-        chunksCache: {enabled: false}
-        resultsCache: {enabled: false}
-        lokiCanary: {enabled: false}
-        test: {enabled: false}
-        minio: {enabled: false}
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 1Gi
+        write:
+          replicas: 0
+        read:
+          replicas: 0
+        backend:
+          replicas: 0
+        gateway:
+          enabled: false
+        chunksCache:
+          enabled: false
+        resultsCache:
+          enabled: false
+        lokiCanary:
+          enabled: false
+        test:
+          enabled: false
+        minio:
+          enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
-    automated: {prune: true, selfHeal: true}
-    syncOptions: [CreateNamespace=true, ServerSideApply=true]
-    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: alloy
   namespace: argocd
-  labels: {app.kubernetes.io/part-of: monitoring}
+  labels:
+    app.kubernetes.io/part-of: monitoring
 spec:
   project: default
   source:
@@ -162,12 +247,19 @@ spec:
         controller:
           type: daemonset
           tolerations:
-          - {key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule}
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
         alloy:
-          mounts: {varlog: true}
+          mounts:
+            varlog: true
           resources:
-            requests: {cpu: 20m, memory: 96Mi}
-            limits: {cpu: 500m, memory: 256Mi}     # 로그 수집이 노드의 CPU 를 다 쓰지 못하게 막음
+            requests:
+              cpu: 20m
+              memory: 96Mi
+            limits:
+              cpu: 500m   # 로그 수집이 노드의 CPU 를 다 쓰지 못하게 막음
+              memory: 256Mi
           configMap:
             content: |
               // 이 노드에 있는 파드만 찾음
@@ -236,9 +328,17 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
-    automated: {prune: true, selfHeal: true}
-    syncOptions: [CreateNamespace=true]
-    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
 ---
 # 모니터링 대상별 설정(monitoring/ 디렉터리): PodMonitor, 알림 규칙, 알림 라우팅, 대시보드
 apiVersion: argoproj.io/v1alpha1
@@ -246,8 +346,10 @@ kind: Application
 metadata:
   name: monitoring-config
   namespace: argocd
-  labels: {app.kubernetes.io/part-of: monitoring}
-  annotations: {argocd.argoproj.io/manifest-generate-paths: .}
+  labels:
+    app.kubernetes.io/part-of: monitoring
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: .
 spec:
   project: default
   source:
@@ -258,6 +360,15 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
-    automated: {prune: true, selfHeal: true}
-    syncOptions: [CreateNamespace=true, SkipDryRunOnMissingResource=true]
-    retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

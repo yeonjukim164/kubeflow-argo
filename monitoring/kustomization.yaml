@@ -11,8 +11,11 @@ generatorOptions:
   disableNameSuffixHash: true
 configMapGenerator:
 - name: alert-logger-code
-  files: [alert-logger.py]
+  files:
+  - alert-logger.py
 - name: kserve-predictor-dashboard          # grafana_dashboard 라벨이 있는 ConfigMap 을 Grafana 의 사이드카가 읽어 들임
-  files: [kserve-predictor-dashboard.json]
+  files:
+  - kserve-predictor-dashboard.json
   options:
-    labels: {grafana_dashboard: "1"}
+    labels:
+      grafana_dashboard: "1"

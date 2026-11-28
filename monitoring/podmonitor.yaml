@@ -8,10 +8,15 @@ metadata:
 spec:
   jobLabel: serving.kserve.io/inferenceservice
   namespaceSelector:
-    matchNames: [kubeflow-user-example-com]
+    matchNames:
+    - kubeflow-user-example-com
   selector:
     matchExpressions:
-    - {key: serving.kserve.io/inferenceservice, operator: In, values: [pets-yolov8n, reco-kserve]}
+    - key: serving.kserve.io/inferenceservice
+      operator: In
+      values:
+      - pets-yolov8n
+      - reco-kserve
   podMetricsEndpoints:
   - portNumber: 8080
     path: /metrics

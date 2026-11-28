@@ -1,34 +1,54 @@
-# 알림을 받아 로그로 남기는 수신자. 로그는 Alloy 가 Loki 로 보내므로 Grafana 에서 {app="alert-logger"} 로 조회한다.
+# 알림을 받아 로그로 남기는 수신자. 로그는 Alloy 가 Loki 로 보내므로 Grafana 에서 {app="alert-logger"} 로 조회함.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: alert-logger
-  labels: {app: alert-logger}
+  labels:
+    app: alert-logger
 spec:
   replicas: 1
-  selector: {matchLabels: {app: alert-logger}}
+  selector:
+    matchLabels:
+      app: alert-logger
   template:
     metadata:
-      labels: {app: alert-logger}
+      labels:
+        app: alert-logger
     spec:
       containers:
       - name: logger
         image: python:3.11-slim
-        command: ["python", "-u", "/app/alert-logger.py"]
-        ports: [{containerPort: 8080}]
-        readinessProbe: {httpGet: {path: /, port: 8080}}
+        command:
+        - "python"
+        - "-u"
+        - "/app/alert-logger.py"
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
         resources:
-          requests: {cpu: 10m, memory: 32Mi}
-          limits: {memory: 96Mi}
-        volumeMounts: [{name: code, mountPath: /app}]
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 96Mi
+        volumeMounts:
+        - name: code
+          mountPath: /app
       volumes:
       - name: code
-        configMap: {name: alert-logger-code}
+        configMap:
+          name: alert-logger-code
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: alert-logger
 spec:
-  selector: {app: alert-logger}
-  ports: [{port: 8080, targetPort: 8080}]
+  selector:
+    app: alert-logger
+  ports:
+  - port: 8080
+    targetPort: 8080
