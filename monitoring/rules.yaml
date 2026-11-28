@@ -1,4 +1,4 @@
-# 알림 규칙. 시험 시간을 줄이려고 for 를 1분으로 두었다(기존 환경의 예시는 5분).
+# 알림 규칙. 시험 시간을 줄이려고 for 를 1분으로 두었음(기존 환경의 예시는 5분).
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -7,21 +7,21 @@ spec:
   groups:
   - name: kserve-predictors
     rules:
-    - alert: ServiceDown                     # 파드는 있는데 /metrics 를 읽지 못한다
+    - alert: ServiceDown                     # 파드는 있는데 /metrics 를 읽지 못함
       expr: up{job=~"pets-yolov8n|reco-kserve"} == 0
       for: 1m
       labels: {severity: critical}
       annotations:
         summary: "{{ $labels.job }} 다운 ({{ $labels.pod }})"
         description: "{{ $labels.job }} 의 /metrics 를 1분 넘게 읽지 못했습니다."
-    - alert: MissingUpMetric                 # 파드가 아예 없어서 up 지표 자체가 사라졌다
+    - alert: MissingUpMetric                 # 파드가 아예 없어서 up 지표 자체가 사라졌음
       expr: absent(up{job="pets-yolov8n"})
       for: 1m
       labels: {severity: critical}
       annotations:
         summary: "pets-yolov8n 의 up 지표 없음"
         description: "pets-yolov8n 타깃이 1분 넘게 보이지 않습니다. InferenceService 가 지워졌거나 파드가 0개입니다."
-    - alert: NoDetectionRatioHigh            # 커스텀 지표로 만든 알림: 최근 5분 동안 받은 사진의 절반 넘게 탐지가 없다
+    - alert: NoDetectionRatioHigh            # 커스텀 지표로 만든 알림: 최근 5분 동안 받은 사진의 절반 넘게 탐지가 없음
       expr: |
         sum(increase(pet_images_without_detection_total[5m]))
           / sum(increase(request_predict_seconds_count{job="pets-yolov8n"}[5m])) > 0.5

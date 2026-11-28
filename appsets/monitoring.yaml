@@ -14,18 +14,18 @@ spec:
     targetRevision: 94.1.0
     helm:
       releaseName: kps
-      # CRD 10개는 처음 설치할 때 만들어졌다. 하나가 수백 KB 라서 Argo CD 가 상태를 확인하다 시간 초과가 났고,
-      # 같은 동기화를 계속 다시 시도했다. 그래서 CRD 는 Argo CD 가 관리하지 않게 뺐다(차트를 올릴 때는 CRD 를 따로 적용한다).
+      # CRD 10개는 처음 설치할 때 만들어졌음. 하나가 수백 KB 라서 Argo CD 가 상태를 확인하다 시간 초과가 났고,
+      # 같은 동기화를 계속 다시 시도했음. 그래서 CRD 는 Argo CD 가 관리하지 않게 뺐음(차트를 올릴 때는 CRD 를 따로 적용함).
       skipCrds: true
       valuesObject:
-        # 홈랩은 호스트 CPU 가 빠듯해서 기본 구성을 줄였다: 기본 알림 규칙과 기본 대시보드를 끄고,
-        # kube-apiserver 와 CoreDNS 는 수집하지 않고, 수집 주기를 60초로 늘린다.
+        # 홈랩은 호스트 CPU 가 빠듯해서 기본 구성을 줄였음: 기본 알림 규칙과 기본 대시보드를 끄고,
+        # kube-apiserver 와 CoreDNS 는 수집하지 않고, 수집 주기를 60초로 늘림.
         defaultRules: {create: false}
         kubeApiServer: {enabled: false}
         coreDns: {enabled: false}
         kubelet:
           serviceMonitor: {interval: 60s, probes: false, resource: false}
-        # kubeadm 은 이 셋을 127.0.0.1 에만 열어 두어서 수집할 수 없다. 켜 두면 Down 알림만 계속 뜬다.
+        # kubeadm 은 이 넷을 127.0.0.1 에만 열어 두어서 수집할 수 없음. 켜 두면 Down 알림만 계속 뜸.
         kubeControllerManager: {enabled: false}
         kubeScheduler: {enabled: false}
         kubeEtcd: {enabled: false}
@@ -33,7 +33,7 @@ spec:
         prometheus:
           service: {type: NodePort, nodePort: 30090}
           prometheusSpec:
-            # release 라벨이 없는 PodMonitor, ServiceMonitor, PrometheusRule 도 모든 네임스페이스에서 읽는다
+            # release 라벨이 없는 PodMonitor, ServiceMonitor, PrometheusRule 도 모든 네임스페이스에서 읽음
             podMonitorSelectorNilUsesHelmValues: false
             serviceMonitorSelectorNilUsesHelmValues: false
             ruleSelectorNilUsesHelmValues: false
@@ -52,7 +52,7 @@ spec:
         alertmanager:
           service: {type: NodePort, nodePort: 30093}
           alertmanagerSpec:
-            # AlertmanagerConfig 의 라우팅을 그 리소스가 있는 네임스페이스의 알림으로 좁히지 않는다
+            # AlertmanagerConfig 의 라우팅을 그 리소스가 있는 네임스페이스의 알림으로 좁히지 않음
             alertmanagerConfigMatcherStrategy: {type: None}
             resources:
               requests: {cpu: 20m, memory: 64Mi}
@@ -61,16 +61,16 @@ spec:
           service: {type: NodePort, nodePort: 30300}
           defaultDashboardsEnabled: false
           admin: {existingSecret: grafana-admin, userKey: admin-user, passwordKey: admin-password}
-          # 홈랩에서는 Grafana 가 뜨는 데 3분 넘게 걸려서, 기본 liveness(60초 뒤부터 확인)에 걸려 계속 재시작했다.
+          # 홈랩에서는 Grafana 가 뜨는 데 3분 넘게 걸려서, 기본 liveness(60초 뒤부터 확인)에 걸려 계속 재시작했음.
           livenessProbe:
             httpGet: {path: /api/health, port: 3000}
             initialDelaySeconds: 1500
             timeoutSeconds: 30
             failureThreshold: 10
           env:
-            GF_PLUGINS_PREINSTALL_DISABLED: "true"   # 시작할 때 플러그인을 내려받아 설치하지 않는다
-            GOMAXPROCS: "2"                          # Go 런타임이 CPU 제한에 맞는 수의 스레드만 쓰게 한다
-          # CPU 제한이 없으면 Grafana 13 이 노드의 vCPU 28개를 다 쓰려고 해서(측정값 6~13코어) 다른 파드가 밀렸다.
+            GF_PLUGINS_PREINSTALL_DISABLED: "true"   # 시작할 때 플러그인을 내려받아 설치하지 않음
+            GOMAXPROCS: "2"                          # Go 런타임이 CPU 제한에 맞는 수의 스레드만 쓰게 함
+          # CPU 제한이 없으면 Grafana 13 이 노드의 vCPU 28개를 다 쓰려고 해서(측정값 6~13코어) 다른 파드가 밀렸음.
           resources:
             requests: {cpu: 50m, memory: 256Mi}
             limits: {cpu: "2", memory: 768Mi}
@@ -109,7 +109,7 @@ spec:
     helm:
       releaseName: loki
       valuesObject:
-        # 파드 하나에 모든 역할을 넣고 로그를 노드의 디스크(PVC)에 둔다. 홈랩 규모에 맞춘 가장 작은 구성.
+        # 파드 하나에 모든 역할을 넣고 로그를 노드의 디스크(PVC)에 둠. 홈랩 규모에 맞춘 가장 작은 구성.
         deploymentMode: SingleBinary
         loki:
           auth_enabled: false
@@ -158,7 +158,7 @@ spec:
     helm:
       releaseName: alloy
       valuesObject:
-        # Loki 는 로그를 저장하고 조회만 한다. 노드마다 Alloy 를 띄워 /var/log/pods 의 파일을 읽어 Loki 로 보낸다.
+        # Loki 는 로그를 저장하고 조회만 함. 노드마다 Alloy 를 띄워 /var/log/pods 의 파일을 읽어 Loki 로 보냄.
         controller:
           type: daemonset
           tolerations:
@@ -167,13 +167,13 @@ spec:
           mounts: {varlog: true}
           resources:
             requests: {cpu: 20m, memory: 96Mi}
-            limits: {cpu: 500m, memory: 256Mi}     # 로그 수집이 노드의 CPU 를 다 쓰지 못하게 막는다
+            limits: {cpu: 500m, memory: 256Mi}     # 로그 수집이 노드의 CPU 를 다 쓰지 못하게 막음
           configMap:
             content: |
-              // 이 노드에 있는 파드만 찾는다
+              // 이 노드에 있는 파드만 찾음
               discovery.kubernetes "pods" {
                 role = "pod"
-                // 로그를 조회할 네임스페이스만 읽는다. 전체(파드 250여 개)를 읽을 때는 노드마다 CPU 제한 500m 를 다 썼다.
+                // 로그를 조회할 네임스페이스만 읽음. 전체(파드 250여 개)를 읽을 때는 노드마다 CPU 제한 500m 를 다 썼음.
                 namespaces {
                   names = ["kubeflow-user-example-com", "monitoring", "mlops"]
                 }
@@ -182,7 +182,7 @@ spec:
                   field = "spec.nodeName=" + coalesce(sys.env("HOSTNAME"), constants.hostname)
                 }
               }
-              // 파드의 메타데이터를 로그 라벨로 바꾸고, 읽을 로그 파일의 경로를 만든다
+              // 파드의 메타데이터를 로그 라벨로 바꾸고, 읽을 로그 파일의 경로를 만듦
               discovery.relabel "pods" {
                 targets = discovery.kubernetes.pods.targets
                 rule {
@@ -215,14 +215,14 @@ spec:
               local.file_match "pods" {
                 path_targets = discovery.relabel.pods.output
               }
-              // tail_from_end: 설치하기 전에 쌓인 로그는 읽지 않고 새로 쌓이는 줄만 보낸다.
-              // 처음부터 읽게 두었더니 25일 치 로그를 한꺼번에 처리하느라 노드마다 CPU 를 13~15코어 썼다.
+              // tail_from_end: 설치하기 전에 쌓인 로그는 읽지 않고 새로 쌓이는 줄만 보냄.
+              // 처음부터 읽게 두었더니 25일 치 로그를 한꺼번에 처리하느라 노드마다 CPU 를 13~15코어 썼음.
               loki.source.file "pods" {
                 targets       = local.file_match.pods.targets
                 forward_to    = [loki.process.cri.receiver]
                 tail_from_end = true
               }
-              // containerd 가 줄 앞에 붙인 시각과 스트림 이름을 떼어 낸다
+              // containerd 가 줄 앞에 붙인 시각과 스트림 이름을 떼어 냄
               loki.process "cri" {
                 stage.cri {}
                 forward_to = [loki.write.loki.receiver]
